@@ -168,7 +168,7 @@ struct User: Identifiable, Codable {
     let updatedAt: Date
 }
 
-// MARK: - Project Model (for reference)
+// MARK: - Project Model (Enhanced for Project Overview)
 struct Project: Identifiable, Codable {
     let id: UUID
     let name: String
@@ -179,6 +179,83 @@ struct Project: Identifiable, Codable {
     let ownerId: UUID
     let createdAt: Date
     let updatedAt: Date
+    
+    // Additional properties for project overview
+    let color: String // Hex color code
+    let totalTasks: Int
+    let activeTasks: Int
+    let completedTasks: Int
+    let teamMembers: [TeamMember]
+    let timeLogged: TimeInterval // in seconds
+    
+    init(
+        id: UUID = UUID(),
+        name: String,
+        description: String? = nil,
+        startDate: Date,
+        endDate: Date? = nil,
+        status: ProjectStatus,
+        ownerId: UUID,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        color: String = "#3B82F6",
+        totalTasks: Int = 0,
+        activeTasks: Int = 0,
+        completedTasks: Int = 0,
+        teamMembers: [TeamMember] = [],
+        timeLogged: TimeInterval = 0
+    ) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.startDate = startDate
+        self.endDate = endDate
+        self.status = status
+        self.ownerId = ownerId
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.color = color
+        self.totalTasks = totalTasks
+        self.activeTasks = activeTasks
+        self.completedTasks = completedTasks
+        self.teamMembers = teamMembers
+        self.timeLogged = timeLogged
+    }
+    
+    var progressPercentage: Double {
+        guard totalTasks > 0 else { return 0 }
+        return Double(completedTasks) / Double(totalTasks)
+    }
+    
+    var formattedTimeLogged: String {
+        let hours = Int(timeLogged) / 3600
+        return "\(hours) 小时"
+    }
+    
+    var statusDisplayName: String {
+        switch status {
+        case .planning: return "规划中"
+        case .active: return "进行中"
+        case .onHold: return "暂停"
+        case .completed: return "已完成"
+        case .cancelled: return "已取消"
+        }
+    }
+    
+    var statusColor: String {
+        switch status {
+        case .planning: return "#6B7280"
+        case .active: return "#F59E0B"
+        case .onHold: return "#EF4444"
+        case .completed: return "#10B981"
+        case .cancelled: return "#9CA3AF"
+        }
+    }
+    
+    var isOverdue: Bool {
+        guard let endDate = endDate else { return false }
+        return Date() > endDate && status != .completed
+    }
 }
 
 enum ProjectStatus: String, CaseIterable, Codable {
@@ -187,4 +264,38 @@ enum ProjectStatus: String, CaseIterable, Codable {
     case onHold = "on_hold"
     case completed = "completed"
     case cancelled = "cancelled"
+}
+
+// MARK: - Team Member Model
+struct TeamMember: Identifiable, Codable {
+    let id: UUID
+    let name: String
+    let avatar: String? // URL or system image name
+    let role: String?
+    let isOnline: Bool
+    
+    init(
+        id: UUID = UUID(),
+        name: String,
+        avatar: String? = nil,
+        role: String? = nil,
+        isOnline: Bool = false
+    ) {
+        self.id = id
+        self.name = name
+        self.avatar = avatar
+        self.role = role
+        self.isOnline = isOnline
+    }
+}
+
+// MARK: - Project Statistics Model
+struct ProjectStatistics {
+    let totalProjects: Int
+    let activeProjects: Int
+    let completedProjects: Int
+    
+    var onHoldProjects: Int {
+        totalProjects - activeProjects - completedProjects
+    }
 }

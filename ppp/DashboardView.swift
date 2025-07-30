@@ -500,28 +500,49 @@ struct DashboardView: View {
         ZStack {
             // Main Content
             VStack(spacing: 0) {
-                // Simple Header
-                headerView
-                
-                // Main Content
-                HStack(spacing: 0) {
-                    // Left Timeline (35% width)
-                    timelineView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color(.systemGray6).opacity(0.3))
-                    
-                    // Right Content (65% width)
-                    VStack(spacing: 16) {
-                        // All Deadlines Section (Top)
-                        allDeadlinesSection
+                // Conditional Content based on selected tab
+                if selectedTab == 0 {
+                    // Home Tab - Dashboard
+                    VStack(spacing: 0) {
+                        // Simple Header
+                        headerView
                         
-                        // Today's Completed Tasks Section (Bottom)
-                        todayCompletedSection
+                        // Main Content
+                        HStack(spacing: 0) {
+                            // Left Timeline (35% width)
+                            timelineView
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color(.systemGray6).opacity(0.3))
+                            
+                            // Right Content (65% width)
+                            VStack(spacing: 16) {
+                                // All Deadlines Section (Top)
+                                allDeadlinesSection
+                                
+                                // Today's Completed Tasks Section (Bottom)
+                                todayCompletedSection
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 16)
+                            .background(Color(.systemBackground))
+                        }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
-                    .background(Color(.systemBackground))
+                } else if selectedTab == 1 {
+                    // Projects Tab
+                    ProjectOverviewView()
+                } else {
+                    // Placeholder for other tabs
+                    VStack {
+                        Spacer()
+                        Text("即将推出")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                        Text("敬请期待更多功能")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
                 }
                 
                 // Bottom Navigation Bar
