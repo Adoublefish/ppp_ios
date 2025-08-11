@@ -11,450 +11,12 @@ struct DashboardView: View {
     @State private var selectedDate = Date()
     @State private var showingDatePicker = false
     @State private var selectedTab = 0
+    @State private var showingTaskInput = false
+    @State private var selectedTask: Task? = nil
+    @ObservedObject private var dataManager = TaskDataManager.shared
     
-    // All fake data for different dates
-    @State private var allScheduleItems: [ScheduleItem] = {
-        let calendar = Calendar.current
-        let today = Date()
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
-        let dayAfterTomorrow = calendar.date(byAdding: .day, value: 2, to: today)!
-        let nextWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: today)!
-        let twoWeeksLater = calendar.date(byAdding: .weekOfYear, value: 2, to: today)!
-        let nextMonth = calendar.date(byAdding: .month, value: 1, to: today)!
-        
-        return [
-            // Today's schedule
-            ScheduleItem(
-                title: "团队晨会",
-                description: "每日站会，同步项目进展",
-                startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: today)!,
-                endTime: calendar.date(bySettingHour: 9, minute: 30, second: 0, of: today)!,
-                category: .meeting,
-                location: "会议室A",
-                createdAt: calendar.date(byAdding: .day, value: -2, to: today)!
-            ),
-            ScheduleItem(
-                title: "产品设计评审",
-                description: "UI/UX设计方案评审会议",
-                startTime: calendar.date(bySettingHour: 10, minute: 0, second: 0, of: today)!,
-                endTime: calendar.date(bySettingHour: 11, minute: 30, second: 0, of: today)!,
-                category: .design,
-                location: "会议室B",
-                createdAt: calendar.date(byAdding: .day, value: -1, to: today)!
-            ),
-            ScheduleItem(
-                title: "客户需求讨论",
-                description: "与客户沟通项目需求细节",
-                startTime: calendar.date(bySettingHour: 13, minute: 0, second: 0, of: today)!,
-                endTime: calendar.date(bySettingHour: 15, minute: 0, second: 0, of: today)!,
-                category: .communication,
-                location: "线上会议",
-                createdAt: calendar.date(byAdding: .hour, value: -3, to: today)!
-            ),
-            ScheduleItem(
-                title: "技术方案会议",
-                description: "讨论系统架构和技术选型",
-                startTime: calendar.date(bySettingHour: 15, minute: 30, second: 0, of: today)!,
-                endTime: calendar.date(bySettingHour: 16, minute: 30, second: 0, of: today)!,
-                category: .meeting,
-                location: "技术部",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "项目进度汇报",
-                description: "向管理层汇报项目当前状态",
-                startTime: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: today)!,
-                endTime: calendar.date(bySettingHour: 17, minute: 30, second: 0, of: today)!,
-                category: .presentation,
-                location: "董事会议室",
-                createdAt: today
-            ),
-            
-            // Yesterday's schedule
-            ScheduleItem(
-                title: "代码评审会议",
-                description: "审查上周提交的代码",
-                startTime: calendar.date(bySettingHour: 9, minute: 30, second: 0, of: yesterday)!,
-                endTime: calendar.date(bySettingHour: 10, minute: 30, second: 0, of: yesterday)!,
-                category: .review,
-                location: "开发部",
-                createdAt: calendar.date(byAdding: .day, value: -3, to: today)!
-            ),
-            ScheduleItem(
-                title: "客户演示",
-                description: "向客户展示最新功能",
-                startTime: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: yesterday)!,
-                endTime: calendar.date(bySettingHour: 15, minute: 30, second: 0, of: yesterday)!,
-                category: .presentation,
-                location: "会议室C",
-                createdAt: calendar.date(byAdding: .day, value: -2, to: today)!
-            ),
-            
-            // Tomorrow's schedule
-            ScheduleItem(
-                title: "项目启动会",
-                description: "新项目启动讨论",
-                startTime: calendar.date(bySettingHour: 10, minute: 0, second: 0, of: tomorrow)!,
-                endTime: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: tomorrow)!,
-                category: .planning,
-                location: "大会议室",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "团队建设活动",
-                description: "季度团队聚餐",
-                startTime: calendar.date(bySettingHour: 18, minute: 0, second: 0, of: tomorrow)!,
-                endTime: calendar.date(bySettingHour: 20, minute: 0, second: 0, of: tomorrow)!,
-                category: .planning,
-                location: "餐厅",
-                createdAt: today
-            ),
-            
-            // Day after tomorrow's schedule
-            ScheduleItem(
-                title: "用户研究会议",
-                description: "分析用户反馈和使用数据",
-                startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: dayAfterTomorrow)!,
-                endTime: calendar.date(bySettingHour: 10, minute: 0, second: 0, of: dayAfterTomorrow)!,
-                category: .review,
-                location: "研究室",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "技术培训",
-                description: "新技术栈培训课程",
-                startTime: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: dayAfterTomorrow)!,
-                endTime: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: dayAfterTomorrow)!,
-                category: .development,
-                location: "培训室",
-                createdAt: today
-            ),
-            
-            // Next week's schedule (Monday)
-            ScheduleItem(
-                title: "周例会",
-                description: "每周项目进度汇报",
-                startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: nextWeek)!,
-                endTime: calendar.date(bySettingHour: 10, minute: 0, second: 0, of: nextWeek)!,
-                category: .meeting,
-                location: "会议室A",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "产品路线图讨论",
-                description: "Q4产品发布计划讨论",
-                startTime: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: nextWeek)!,
-                endTime: calendar.date(bySettingHour: 16, minute: 0, second: 0, of: nextWeek)!,
-                category: .planning,
-                location: "策略室",
-                createdAt: today
-            ),
-            
-            // Next week Tuesday
-            ScheduleItem(
-                title: "客户需求评审",
-                description: "新客户需求可行性分析",
-                startTime: calendar.date(bySettingHour: 10, minute: 30, second: 0, of: calendar.date(byAdding: .day, value: 1, to: nextWeek)!)!,
-                endTime: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 1, to: nextWeek)!)!,
-                category: .review,
-                location: "会议室B",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "技术架构讨论",
-                description: "微服务架构迁移方案",
-                startTime: calendar.date(bySettingHour: 15, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 1, to: nextWeek)!)!,
-                endTime: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 1, to: nextWeek)!)!,
-                category: .development,
-                location: "技术部",
-                createdAt: today
-            ),
-            
-            // Next week Wednesday
-            ScheduleItem(
-                title: "设计评审会",
-                description: "新版本UI设计终审",
-                startTime: calendar.date(bySettingHour: 9, minute: 30, second: 0, of: calendar.date(byAdding: .day, value: 2, to: nextWeek)!)!,
-                endTime: calendar.date(bySettingHour: 11, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 2, to: nextWeek)!)!,
-                category: .design,
-                location: "设计部",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "季度总结会议",
-                description: "Q3工作总结和Q4规划",
-                startTime: calendar.date(bySettingHour: 14, minute: 30, second: 0, of: calendar.date(byAdding: .day, value: 2, to: nextWeek)!)!,
-                endTime: calendar.date(bySettingHour: 17, minute: 30, second: 0, of: calendar.date(byAdding: .day, value: 2, to: nextWeek)!)!,
-                category: .presentation,
-                location: "大会议室",
-                createdAt: today
-            ),
-            
-            // Next week Thursday
-            ScheduleItem(
-                title: "用户测试会议",
-                description: "新功能用户体验测试",
-                startTime: calendar.date(bySettingHour: 10, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 3, to: nextWeek)!)!,
-                endTime: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 3, to: nextWeek)!)!,
-                category: .testing,
-                location: "用户研究室",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "合作伙伴会议",
-                description: "讨论合作项目进展",
-                startTime: calendar.date(bySettingHour: 15, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 3, to: nextWeek)!)!,
-                endTime: calendar.date(bySettingHour: 16, minute: 30, second: 0, of: calendar.date(byAdding: .day, value: 3, to: nextWeek)!)!,
-                category: .communication,
-                location: "线上会议",
-                createdAt: today
-            ),
-            
-            // Next week Friday
-            ScheduleItem(
-                title: "代码发布会议",
-                description: "版本发布前最终检查",
-                startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 4, to: nextWeek)!)!,
-                endTime: calendar.date(bySettingHour: 10, minute: 30, second: 0, of: calendar.date(byAdding: .day, value: 4, to: nextWeek)!)!,
-                category: .development,
-                location: "开发部",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "团队聚餐",
-                description: "庆祝项目里程碑达成",
-                startTime: calendar.date(bySettingHour: 18, minute: 30, second: 0, of: calendar.date(byAdding: .day, value: 4, to: nextWeek)!)!,
-                endTime: calendar.date(bySettingHour: 21, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 4, to: nextWeek)!)!,
-                category: .planning,
-                location: "餐厅",
-                createdAt: today
-            ),
-            
-            // Two weeks later (Monday)
-            ScheduleItem(
-                title: "月度全员大会",
-                description: "公司月度业务汇报",
-                startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: twoWeeksLater)!,
-                endTime: calendar.date(bySettingHour: 11, minute: 0, second: 0, of: twoWeeksLater)!,
-                category: .presentation,
-                location: "礼堂",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "新员工培训",
-                description: "公司文化和流程培训",
-                startTime: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: twoWeeksLater)!,
-                endTime: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: twoWeeksLater)!,
-                category: .planning,
-                location: "培训室",
-                createdAt: today
-            ),
-            
-            // Two weeks later Tuesday
-            ScheduleItem(
-                title: "技术分享会",
-                description: "最新技术趋势分享",
-                startTime: calendar.date(bySettingHour: 15, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 1, to: twoWeeksLater)!)!,
-                endTime: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 1, to: twoWeeksLater)!)!,
-                category: .development,
-                location: "技术部",
-                createdAt: today
-            ),
-            
-            // Two weeks later Wednesday
-            ScheduleItem(
-                title: "投资人会议",
-                description: "季度业绩汇报",
-                startTime: calendar.date(bySettingHour: 10, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 2, to: twoWeeksLater)!)!,
-                endTime: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 2, to: twoWeeksLater)!)!,
-                category: .presentation,
-                location: "董事会议室",
-                createdAt: today
-            ),
-            
-            // Next month schedule
-            ScheduleItem(
-                title: "月度规划会议",
-                description: "下月工作计划制定",
-                startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: nextMonth)!,
-                endTime: calendar.date(bySettingHour: 11, minute: 30, second: 0, of: nextMonth)!,
-                category: .planning,
-                location: "大会议室",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "产品发布会",
-                description: "新版本正式发布",
-                startTime: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: nextMonth)!,
-                endTime: calendar.date(bySettingHour: 16, minute: 0, second: 0, of: nextMonth)!,
-                category: .presentation,
-                location: "发布厅",
-                createdAt: today
-            ),
-            
-            // Next month + 1 week
-            ScheduleItem(
-                title: "客户反馈收集会",
-                description: "收集新版本用户反馈",
-                startTime: calendar.date(bySettingHour: 10, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 7, to: nextMonth)!)!,
-                endTime: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 7, to: nextMonth)!)!,
-                category: .review,
-                location: "会议室A",
-                createdAt: today
-            ),
-            ScheduleItem(
-                title: "技术债务梳理",
-                description: "清理技术债务计划",
-                startTime: calendar.date(bySettingHour: 15, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 7, to: nextMonth)!)!,
-                endTime: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 7, to: nextMonth)!)!,
-                category: .development,
-                location: "技术部",
-                createdAt: today
-            ),
-            
-            // Next month + 2 weeks
-            ScheduleItem(
-                title: "年度规划会议",
-                description: "下年度战略规划讨论",
-                startTime: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 14, to: nextMonth)!)!,
-                endTime: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 14, to: nextMonth)!)!,
-                category: .planning,
-                location: "会议中心",
-                createdAt: today
-            )
-        ]
-    }()
-    
-    @State private var allTasks: [Task] = {
-        let calendar = Calendar.current
-        let today = Date()
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
-        let dayAfterTomorrow = calendar.date(byAdding: .day, value: 2, to: today)!
-        let nextWeek = calendar.date(byAdding: .day, value: 7, to: today)!
-        let nextMonth = calendar.date(byAdding: .month, value: 1, to: today)!
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
-        
-        return [
-            // Today's deadlines
-            Task(
-                title: "Document Review",
-                description: "Review the technical specification document",
-                dueDate: calendar.date(bySettingHour: 19, minute: 0, second: 0, of: today)!,
-                priority: .high,
-                category: .documentation
-            ),
-            Task(
-                title: "Team Meeting Prep",
-                description: "Prepare slides for the weekly team meeting",
-                dueDate: calendar.date(bySettingHour: 15, minute: 30, second: 0, of: today)!,
-                priority: .medium,
-                category: .meeting
-            ),
-            
-            // Tomorrow's deadlines
-            Task(
-                title: "App Submission",
-                description: "Submit the mobile app to the app store",
-                dueDate: calendar.date(bySettingHour: 13, minute: 0, second: 0, of: tomorrow)!,
-                priority: .urgent,
-                category: .development
-            ),
-            Task(
-                title: "Design Review",
-                description: "Complete UI/UX design review with stakeholders",
-                dueDate: calendar.date(bySettingHour: 16, minute: 0, second: 0, of: tomorrow)!,
-                priority: .high,
-                category: .design
-            ),
-            
-            // Day after tomorrow
-            Task(
-                title: "Database Migration",
-                description: "Migrate production database to new schema",
-                dueDate: calendar.date(bySettingHour: 10, minute: 0, second: 0, of: dayAfterTomorrow)!,
-                priority: .high,
-                category: .development
-            ),
-            
-            // Next week
-            Task(
-                title: "Quarterly Presentation",
-                description: "Present quarterly results to board of directors",
-                dueDate: calendar.date(bySettingHour: 14, minute: 0, second: 0, of: nextWeek)!,
-                priority: .urgent,
-                category: .presentation
-            ),
-            Task(
-                title: "System Testing",
-                description: "Complete integration testing for new features",
-                dueDate: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: nextWeek)!,
-                priority: .medium,
-                category: .testing
-            ),
-            
-            // Next month
-            Task(
-                title: "Project Milestone",
-                description: "Complete Phase 2 of the development project",
-                dueDate: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: nextMonth)!,
-                priority: .high,
-                category: .milestone
-            ),
-            
-            // Completed tasks (various dates)
-            Task(
-                title: "Code Review",
-                description: "Review pull requests from team members",
-                dueDate: calendar.date(bySettingHour: 11, minute: 0, second: 0, of: yesterday)!,
-                completedAt: calendar.date(bySettingHour: 10, minute: 30, second: 0, of: today)!,
-                isCompleted: true,
-                priority: .medium,
-                category: .review
-            ),
-            Task(
-                title: "Bug Fixes",
-                description: "Fix critical bugs reported in production",
-                dueDate: calendar.date(bySettingHour: 16, minute: 0, second: 0, of: yesterday)!,
-                completedAt: calendar.date(bySettingHour: 14, minute: 15, second: 0, of: today)!,
-                isCompleted: true,
-                priority: .urgent,
-                category: .development
-            ),
-            Task(
-                title: "Client Communication",
-                description: "Send project update to client stakeholders",
-                dueDate: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: today)!,
-                completedAt: calendar.date(bySettingHour: 8, minute: 45, second: 0, of: today)!,
-                isCompleted: true,
-                priority: .medium,
-                category: .communication
-            ),
-            
-            // Future tasks with various priorities
-            Task(
-                title: "Performance Optimization",
-                description: "Optimize application performance and reduce load times",
-                dueDate: calendar.date(byAdding: .day, value: 14, to: today)!,
-                priority: .medium,
-                category: .development
-            ),
-            Task(
-                title: "Documentation Update",
-                description: "Update API documentation with latest changes",
-                dueDate: calendar.date(byAdding: .day, value: 21, to: today)!,
-                priority: .low,
-                category: .documentation
-            ),
-            Task(
-                title: "Security Audit",
-                description: "Conduct comprehensive security audit of the system",
-                dueDate: calendar.date(byAdding: .day, value: 35, to: today)!,
-                priority: .high,
-                category: .testing
-            )
-        ]
-    }()
+    // 清理掉所有硬编码的ScheduleItem数据，只保留eero项目的Task数据
+    @State private var allScheduleItems: [ScheduleItem] = []
     
     @State private var currentTime = Date()
     
@@ -466,24 +28,36 @@ struct DashboardView: View {
         }
     }
     
+    /// 今日时间段任务 (有startTime和endTime的Task)
+    private var todayTimeRangeTasks: [Task] {
+        let calendar = Calendar.current
+        return dataManager.allTasks.filter { task in
+            guard let startTime = task.startTime else { return false }
+            return calendar.isDate(startTime, inSameDayAs: selectedDate) && task.isTimeRangeTask
+        }
+    }
+    
     private var pendingDeadlines: [Task] {
         // Use selected date as the baseline instead of current date
         let calendar = Calendar.current
         let startOfSelectedDate = calendar.startOfDay(for: selectedDate)
         
-        return allTasks
+        return dataManager.allTasks
             .filter { task in
-                !task.isCompleted && task.dueDate >= startOfSelectedDate
+                // 只显示有截止日期且未完成的任务
+                guard let dueDate = task.dueDate else { return false }
+                return !task.isCompleted && dueDate >= startOfSelectedDate
             }
             .sorted { task1, task2 in
                 // Sort by due date (nearest first)
-                return task1.dueDate < task2.dueDate
+                guard let due1 = task1.dueDate, let due2 = task2.dueDate else { return false }
+                return due1 < due2
             }
     }
     
     private var todayCompletedTasks: [Task] {
         let calendar = Calendar.current
-        return allTasks
+        return dataManager.allTasks
             .filter { task in
                 task.isCompleted &&
                 task.completedAt != nil &&
@@ -552,6 +126,12 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showingDatePicker) {
             datePickerSheet
+        }
+        .fullScreenCover(isPresented: $showingTaskInput) {
+            TaskInputView()
+        }
+        .sheet(item: $selectedTask) { task in
+            TaskDetailView(task: task)
         }
         .onAppear {
             Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
@@ -656,7 +236,7 @@ extension DashboardView {
     }
 }
 
-// MARK: - Timeline View (Dynamic with Multi-hour Events)
+// MARK: - Timeline View (Simple Static)
 extension DashboardView {
     private var timelineView: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -706,11 +286,17 @@ extension DashboardView {
             
             // Event content area
             VStack(alignment: .leading, spacing: 4) {
+                // Display ScheduleItems
                 ForEach(getEventsForHour(hour), id: \.id) { event in
                     scheduleEventView(event, currentHour: hour)
                 }
                 
-                if getEventsForHour(hour).isEmpty {
+                // Display Time Range Tasks
+                ForEach(getTasksForHour(hour), id: \.id) { task in
+                    taskEventView(task, currentHour: hour)
+                }
+                
+                if getEventsForHour(hour).isEmpty && getTasksForHour(hour).isEmpty {
                     Spacer()
                         .frame(height: 20)
                 }
@@ -773,6 +359,71 @@ extension DashboardView {
         )
     }
     
+    /// 显示任务事件的视图
+    private func taskEventView(_ task: Task, currentHour: Int) -> some View {
+        guard let startTime = task.startTime, let endTime = task.endTime else {
+            return AnyView(EmptyView())
+        }
+        
+        let startHour = Calendar.current.component(.hour, from: startTime)
+        let endHour = Calendar.current.component(.hour, from: endTime)
+        let isFirstHour = currentHour == startHour
+        let isLastHour = currentHour == endHour || (currentHour == endHour - 1 && Calendar.current.component(.minute, from: endTime) == 0)
+        let isSpanning = currentHour > startHour && currentHour < endHour
+        
+        return AnyView(
+            Button(action: {
+                selectedTask = task
+            }) {
+                HStack(spacing: 8) {
+                    Rectangle()
+                        .fill(categoryColor(for: task.category))
+                        .frame(width: 4)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        if isFirstHour {
+                            Text(task.title)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            
+                            if let duration = task.duration {
+                                Text("\(duration) • 任务")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        } else if isSpanning {
+                            Text("↕ \(task.title) 进行中")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        } else if isLastHour {
+                            Text("↑ \(task.title) 结束")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, isFirstHour ? 6 : 3)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(categoryColor(for: task.category).opacity(isFirstHour ? 0.15 : 0.08))
+                        .overlay(
+                            // Left border for spanning events
+                            Rectangle()
+                                .fill(categoryColor(for: task.category))
+                                .frame(width: 2)
+                                .opacity(isSpanning || isLastHour ? 0.6 : 0),
+                            alignment: .leading
+                        )
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+        )
+    }
+    
     private func getEventsForHour(_ hour: Int) -> [ScheduleItem] {
         return todaySchedule.filter { event in
             let startHour = Calendar.current.component(.hour, from: event.startTime)
@@ -780,6 +431,22 @@ extension DashboardView {
             let endMinute = Calendar.current.component(.minute, from: event.endTime)
             
             // Event spans this hour if:
+            // 1. It starts at this hour
+            // 2. It's ongoing during this hour
+            // 3. It ends during this hour (but not at minute 0)
+            return hour >= startHour && (hour < endHour || (hour == endHour && endMinute > 0))
+        }
+    }
+    
+    /// 获取指定小时的时间段任务
+    private func getTasksForHour(_ hour: Int) -> [Task] {
+        return todayTimeRangeTasks.filter { task in
+            guard let startTime = task.startTime, let endTime = task.endTime else { return false }
+            let startHour = Calendar.current.component(.hour, from: startTime)
+            let endHour = Calendar.current.component(.hour, from: endTime)
+            let endMinute = Calendar.current.component(.minute, from: endTime)
+            
+            // Task spans this hour if:
             // 1. It starts at this hour
             // 2. It's ongoing during this hour
             // 3. It ends during this hour (but not at minute 0)
@@ -877,57 +544,70 @@ extension DashboardView {
     }
     
     private func deadlineTaskRow(_ task: Task) -> some View {
-        let urgencyColor = getUrgencyColor(for: task.dueDate)
+        let urgencyColor: Color = {
+            guard let dueDate = task.dueDate else { return .secondary }
+            return getUrgencyColor(for: dueDate)
+        }()
         
-        return HStack(spacing: 12) {
-            // Completion checkbox
-            Button(action: {
-                // Toggle completion logic would go here
-            }) {
-                Image(systemName: "circle")
-                    .font(.title3)
-                    .foregroundColor(.secondary)
-            }
-            
-            // Task content
-            VStack(alignment: .leading, spacing: 4) {
-                Text(task.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
+        return Button(action: {
+            selectedTask = task
+        }) {
+            HStack(spacing: 12) {
+                // Completion checkbox
+                Button(action: {
+                    dataManager.toggleTaskCompletion(task)
+                }) {
+                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundColor(task.isCompleted ? .green : .secondary)
+                }
+                .buttonStyle(PlainButtonStyle())
                 
-                Text(task.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                
-                HStack {
-                    Text(task.category.displayName)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(urgencyColor.opacity(0.1))
-                        .foregroundColor(urgencyColor)
-                        .cornerRadius(4)
+                // Task content
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(task.title)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.leading)
                     
-                    Spacer()
+                    Text(task.description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                     
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(urgencyColor)
-                            .frame(width: 6, height: 6)
-                        
-                        Text(formatAbsoluteDueTime(task.dueDate))
-                            .font(.caption)
+                    HStack {
+                        Text(task.category.displayName)
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(urgencyColor.opacity(0.1))
                             .foregroundColor(urgencyColor)
+                            .cornerRadius(4)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(urgencyColor)
+                                .frame(width: 6, height: 6)
+                            
+                            Text(task.dueDate.map(formatAbsoluteDueTime) ?? "无截止时间")
+                                .font(.caption)
+                                .foregroundColor(urgencyColor)
+                        }
                     }
                 }
+                
+                Spacer()
             }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(urgencyColor.opacity(0.05))
+            .cornerRadius(8)
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(urgencyColor.opacity(0.05))
-        .cornerRadius(8)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -970,11 +650,19 @@ extension DashboardView {
     }
     
     private func completedTaskRow(_ task: Task) -> some View {
-        HStack(spacing: 12) {
-            // Completion checkmark
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title3)
-                .foregroundColor(.green)
+        Button(action: {
+            selectedTask = task
+        }) {
+            HStack(spacing: 12) {
+                // Completion checkbox (clickable to uncheck)
+                Button(action: {
+                    dataManager.toggleTaskCompletion(task)
+                }) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(.green)
+                }
+                .buttonStyle(PlainButtonStyle())
             
             // Task content
             VStack(alignment: .leading, spacing: 4) {
@@ -1018,6 +706,8 @@ extension DashboardView {
         .padding(.horizontal, 12)
         .background(Color.green.opacity(0.05))
         .cornerRadius(8)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -1047,7 +737,7 @@ extension DashboardView {
             
             // Add Button (Large Center)
             Button(action: {
-                // Add new task/event action
+                showingTaskInput = true
             }) {
                 Image(systemName: "plus")
                     .font(.title2)
@@ -1121,7 +811,9 @@ extension DashboardView {
         }
         
         // Get all pending deadline times to establish the range
-        let allPendingTimes = pendingDeadlines.map { $0.dueDate.timeIntervalSince(now) }
+        let allPendingTimes = pendingDeadlines.compactMap { task in
+            task.dueDate?.timeIntervalSince(now)
+        }
         
         guard let minTime = allPendingTimes.min(),
               let maxTime = allPendingTimes.max(),
@@ -1185,11 +877,12 @@ extension DashboardView {
         case .planning: return .teal
         case .testing: return .cyan
         case .documentation: return .brown
+        case .custom:
+            return .red
         }
     }
     
     private func formatRelativeDueTime(_ date: Date) -> String {
-        let now = Date()
         let calendar = Calendar.current
         
         if calendar.isDate(date, inSameDayAs: selectedDate) {

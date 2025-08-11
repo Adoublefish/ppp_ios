@@ -13,11 +13,14 @@ struct Task: Identifiable, Codable {
     let id: UUID
     let title: String
     let description: String
-    let dueDate: Date
+    let startTime: Date?     // 开始时间 (可选)
+    let endTime: Date?       // 结束时间 (可选)
+    let dueDate: Date?       // 截止日期 (可选)
     let completedAt: Date?
     let isCompleted: Bool
     let priority: TaskPriority
     let category: TaskCategory
+    let customCategoryId: UUID?  // 自定义类别ID（当category为.custom时使用）
     let createdAt: Date
     let updatedAt: Date
     let projectId: UUID?
@@ -27,11 +30,14 @@ struct Task: Identifiable, Codable {
         id: UUID = UUID(),
         title: String,
         description: String,
-        dueDate: Date,
+        startTime: Date? = nil,
+        endTime: Date? = nil,
+        dueDate: Date? = nil,
         completedAt: Date? = nil,
         isCompleted: Bool = false,
         priority: TaskPriority,
         category: TaskCategory,
+        customCategoryId: UUID? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         projectId: UUID? = nil,
@@ -40,15 +46,46 @@ struct Task: Identifiable, Codable {
         self.id = id
         self.title = title
         self.description = description
+        self.startTime = startTime
+        self.endTime = endTime
         self.dueDate = dueDate
         self.completedAt = completedAt
         self.isCompleted = isCompleted
         self.priority = priority
         self.category = category
+        self.customCategoryId = customCategoryId
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.projectId = projectId
         self.assigneeId = assigneeId
+    }
+    
+    // MARK: - Computed Properties
+    
+    /// 是否是时间段任务 (有开始和结束时间)
+    var isTimeRangeTask: Bool {
+        return startTime != nil && endTime != nil
+    }
+    
+    /// 是否是截止日期任务 (只有截止时间)
+    var isDeadlineTask: Bool {
+        return dueDate != nil
+    }
+    
+    /// 任务持续时间 (如果是时间段任务)
+    var duration: String? {
+        guard let start = startTime, let end = endTime else { return nil }
+        let minutes = Calendar.current.dateComponents([.minute], from: start, to: end).minute ?? 0
+        let hours = minutes / 60
+        let remainingMinutes = minutes % 60
+        
+        if hours > 0 && remainingMinutes > 0 {
+            return "\(hours)h\(remainingMinutes)m"
+        } else if hours > 0 {
+            return "\(hours)h"
+        } else {
+            return "\(remainingMinutes)m"
+        }
     }
 }
 
@@ -79,6 +116,7 @@ enum TaskCategory: String, CaseIterable, Codable {
     case planning = "planning"
     case testing = "testing"
     case documentation = "documentation"
+    case custom = "custom"  // 自定义类别标识
     
     var displayName: String {
         switch self {
@@ -92,7 +130,35 @@ enum TaskCategory: String, CaseIterable, Codable {
         case .planning: return "规划"
         case .testing: return "测试"
         case .documentation: return "文档"
+        case .custom: return "自定义"
         }
+    }
+    
+    static var defaultCategories: [TaskCategory] {
+        return [.meeting, .review, .development, .design, .communication, .presentation, .milestone, .planning, .testing, .documentation]
+    }
+}
+
+// MARK: - 自定义类别模型
+struct CustomTaskCategory: Identifiable, Codable {
+    let id: UUID
+    let name: String
+    let color: String  // 十六进制颜色代码
+    let icon: String   // SF Symbol 名称
+    let createdAt: Date
+    
+    init(
+        id: UUID = UUID(),
+        name: String,
+        color: String = "#3B82F6",
+        icon: String = "folder",
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.name = name
+        self.color = color
+        self.icon = icon
+        self.createdAt = createdAt
     }
 }
 

@@ -12,24 +12,29 @@ struct ProjectDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedFilter = "全部任务"
     @State private var showingAIAssistant = false
-    
-    // Mock data for project tasks
-    @State private var projectTasks: [ProjectTask] = []
+    @State private var selectedTask: Task? = nil
+    @ObservedObject private var dataManager = TaskDataManager.shared
     
     private let filterOptions = ["全部任务", "已完成", "进行中", "逾期", "高优先级"]
     
-    private var filteredTasks: [ProjectTask] {
+    private var filteredTasks: [Task] {
+        let projectTasks = dataManager.tasksForProject(project.id)
+        
         switch selectedFilter {
         case "已完成":
-            return projectTasks.filter { $0.status == .completed }
+            return projectTasks.filter { $0.isCompleted }.sorted { $0.createdAt < $1.createdAt }
         case "进行中":
-            return projectTasks.filter { $0.status == .inProgress }
+            return projectTasks.filter { !$0.isCompleted }.sorted { $0.createdAt < $1.createdAt }
         case "逾期":
-            return projectTasks.filter { $0.isOverdue }
+            return projectTasks.filter { task in
+                guard let dueDate = task.dueDate else { return false }
+                return !task.isCompleted && dueDate < Date()
+            }.sorted { $0.createdAt < $1.createdAt }
         case "高优先级":
-            return projectTasks.filter { $0.priority == .high || $0.priority == .urgent }
+            return projectTasks.filter { $0.priority == .high || $0.priority == .urgent }.sorted { $0.createdAt < $1.createdAt }
         default:
-            return projectTasks
+            // 默认按创建时间排序（时间线按创建时间显示）
+            return projectTasks.sorted { $0.createdAt < $1.createdAt }
         }
     }
     
@@ -64,11 +69,11 @@ struct ProjectDetailView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationBarHidden(true)
-        .onAppear {
-            loadProjectTasks()
-        }
         .sheet(isPresented: $showingAIAssistant) {
             AIAssistantView(project: project)
+        }
+        .sheet(item: $selectedTask) { task in
+            TaskDetailView(task: task)
         }
     }
     
@@ -106,8 +111,8 @@ struct ProjectDetailView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 60)
-        .padding(.bottom, 16)
+        .padding(.top, 30) // reduced from 60
+        .padding(.bottom, 16) // reduced from 16
         .background(Color(hex: project.color))
     }
     
@@ -213,11 +218,12 @@ struct ProjectDetailView: View {
     private var timelineSection: some View {
         VStack(spacing: 0) {
             ForEach(Array(filteredTasks.enumerated()), id: \.offset) { index, task in
-                TimelineTaskView(
-                    task: task,
-                    isLast: index == filteredTasks.count - 1,
-                    projectColor: project.color
-                )
+                                    TimelineTaskView(
+                        task: task,
+                        isLast: index == filteredTasks.count - 1,
+                        projectColor: project.color,
+                        onTaskTap: { selectedTask = task }
+                    )
             }
         }
     }
@@ -274,47 +280,7 @@ struct ProjectDetailView: View {
         return formatter.string(from: date)
     }
     
-    private func loadProjectTasks() {
-        // Mock data based on the project
-        let calendar = Calendar.current
-        let today = Date()
-        
-        projectTasks = [
-            ProjectTask(
-                id: UUID(),
-                title: "品牌定位研究",
-                description: "市场调研和品牌定位分析",
-                assignee: TeamMember(name: "张明", avatar: "person.circle.fill"),
-                status: .completed,
-                priority: .medium,
-                timeLogged: 28800, // 8 hours
-                dueDate: calendar.date(byAdding: .day, value: -10, to: today)!,
-                completedDate: calendar.date(byAdding: .day, value: -12, to: today)!
-            ),
-            ProjectTask(
-                id: UUID(),
-                title: "视觉风格指南",
-                description: "制定品牌视觉识别系统",
-                assignee: TeamMember(name: "李华", avatar: "person.circle.fill"),
-                status: .inProgress,
-                priority: .high,
-                timeLogged: 43200, // 12 hours
-                dueDate: calendar.date(byAdding: .day, value: 2, to: today)!,
-                completedDate: calendar.date(byAdding: .day, value: -12, to: today)!
-            ),
-            ProjectTask(
-                id: UUID(),
-                title: "标志设计",
-                description: "创建新的品牌标志设计",
-                assignee: TeamMember(name: "王芳", avatar: "person.circle.fill"),
-                status: .completed,
-                priority: .high,
-                timeLogged: 57600, // 16 hours
-                dueDate: calendar.date(byAdding: .day, value: -5, to: today)!,
-                completedDate: calendar.date(byAdding: .day, value: -7, to: today)!
-            )
-        ]
-    }
+
 }
 
 // MARK: - Supporting Views
@@ -339,121 +305,229 @@ struct FilterTabView: View {
 }
 
 struct TimelineTaskView: View {
-    let task: ProjectTask
+    let task: Task
     let isLast: Bool
     let projectColor: String
+    let onTaskTap: () -> Void
     
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            // Timeline indicator
-            VStack(spacing: 0) {
-                Circle()
-                    .fill(task.status == .completed ? Color.green : 
-                          task.status == .inProgress ? Color.blue : Color.gray)
-                    .frame(width: 12, height: 12)
-                
-                if !isLast {
-                    Rectangle()
-                        .fill(Color(.systemGray4))
-                        .frame(width: 2, height: 60)
+        Button(action: onTaskTap) {
+            HStack(alignment: .top, spacing: 16) {
+                // Timeline indicator
+                VStack(spacing: 0) {
+                    Circle()
+                        .fill(task.isCompleted ? Color.green : Color.blue)
+                        .frame(width: 12, height: 12)
+                    
+                    if !isLast {
+                        Rectangle()
+                            .fill(Color(.systemGray4))
+                            .frame(width: 2, height: 80) // 增加高度以适应新内容
+                    }
                 }
-            }
-            
-            // Task content
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
+                
+                // Task content - 增强版本：显示title、分类标签、优先级和负责人
+                VStack(alignment: .leading, spacing: 12) {
+                    // Title
                     Text(task.title)
                         .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
+                        .multilineTextAlignment(.leading)
                     
-                    Spacer()
+                    // Description (if available)
+                    if !task.description.isEmpty {
+                        Text(task.description)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
                     
-                    Text(task.status == .completed ? "已完成" : "进行中")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
+                    // Category Tag and Priority
+                    HStack(spacing: 8) {
+                        // Category Tag
+                        HStack(spacing: 4) {
+                            Image(systemName: getCategoryIcon())
+                                .font(.caption2)
+                                .foregroundColor(getCategoryColor())
+                            
+                            Text(getCategoryDisplayName())
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(task.status == .completed ? Color.green : Color.orange)
-                        .cornerRadius(12)
-                }
-                
-                // Assignee info
-                HStack(spacing: 8) {
-                    Image(systemName: task.assignee.avatar ?? "person.circle.fill")
-                        .font(.title3)
-                        .foregroundColor(Color(hex: projectColor))
+                        .background(getCategoryColor().opacity(0.1))
+                        .cornerRadius(8)
+                        
+                        // Priority Tag
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(priorityColor(task.priority))
+                                .frame(width: 6, height: 6)
+                            
+                            Text(priorityDisplayName(task.priority))
+                                .font(.caption2)
+                                .foregroundColor(priorityColor(task.priority))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(priorityColor(task.priority).opacity(0.1))
+                        .cornerRadius(8)
+                        
+                        Spacer()
+                    }
                     
-                    Text(task.assignee.name)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                // Time and date info
-                HStack {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
+                    // Assignee and Date
+                    HStack {
+                        Image(systemName: "person.circle")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text(task.formattedTimeLogged)
-                            .font(.caption)
+                        if let assigneeId = task.assigneeId {
+                            Text("负责人: \(getAssigneeName(assigneeId))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("未分配")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        // 创建时间
+                        Text(formatCreatedDate(task.createdAt))
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
-                    
-                    Spacer()
-                    
-                    Text(formatTaskDate(task))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
+                
+                Spacer()
             }
             .padding(16)
             .background(Color(.systemBackground))
             .cornerRadius(12)
             .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
+        .buttonStyle(PlainButtonStyle())
         .padding(.bottom, isLast ? 0 : 16)
     }
     
-    private func formatTaskDate(_ task: ProjectTask) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
+    private func priorityDisplayName(_ priority: TaskPriority) -> String {
+        switch priority {
+        case .low: return "低"
+        case .medium: return "中"
+        case .high: return "高"
+        case .urgent: return "紧急"
+        }
+    }
+    
+    private func priorityColor(_ priority: TaskPriority) -> Color {
+        switch priority {
+        case .low: return .green
+        case .medium: return .orange
+        case .high: return .red
+        case .urgent: return .purple
+        }
+    }
+    
+    /// 获取负责人姓名
+    private func getAssigneeName(_ assigneeId: UUID) -> String {
+        // 为演示目的，根据固定的UUID返回对应的用户名
+        // 在实际应用中，应该从用户数据库或缓存中获取用户名
+        let idString = assigneeId.uuidString
         
-        if let completedDate = task.completedDate {
-            return formatter.string(from: completedDate)
+        // 匹配我们在TaskDataManager中创建的固定UUID
+        if idString == "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA" {
+            return "Jim"
+        } else if idString == "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB" {
+            return "Clare"
         } else {
-            return formatter.string(from: task.dueDate)
+            return "未知用户"
+        }
+    }
+    
+    /// 格式化创建日期
+    private func formatCreatedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM/dd HH:mm"
+        return formatter.string(from: date)
+    }
+    
+    /// 获取分类显示名称
+    private func getCategoryDisplayName() -> String {
+        let dataManager = TaskDataManager.shared
+        
+        if task.category == .custom, let customCategoryId = task.customCategoryId,
+           let customCategory = dataManager.getCustomCategory(byId: customCategoryId) {
+            return customCategory.name
+        } else {
+            return task.category.displayName
+        }
+    }
+    
+    /// 获取分类图标
+    private func getCategoryIcon() -> String {
+        let dataManager = TaskDataManager.shared
+        
+        if task.category == .custom, let customCategoryId = task.customCategoryId,
+           let customCategory = dataManager.getCustomCategory(byId: customCategoryId) {
+            return customCategory.icon
+        } else {
+            return getCategoryIconForDefault(task.category)
+        }
+    }
+    
+    /// 获取分类颜色
+    private func getCategoryColor() -> Color {
+        let dataManager = TaskDataManager.shared
+        
+        if task.category == .custom, let customCategoryId = task.customCategoryId,
+           let customCategory = dataManager.getCustomCategory(byId: customCategoryId) {
+            return Color(hex: customCategory.color)
+        } else {
+            return getCategoryColorForDefault(task.category)
+        }
+    }
+    
+    /// 获取默认分类图标
+    private func getCategoryIconForDefault(_ category: TaskCategory) -> String {
+        switch category {
+        case .meeting: return "person.2"
+        case .review: return "checkmark.circle"
+        case .development: return "hammer"
+        case .design: return "paintbrush"
+        case .communication: return "message"
+        case .presentation: return "presentation"
+        case .milestone: return "flag"
+        case .planning: return "calendar"
+        case .testing: return "testtube.2"
+        case .documentation: return "doc.text"
+        case .custom: return "folder"
+        }
+    }
+    
+    /// 获取默认分类颜色
+    private func getCategoryColorForDefault(_ category: TaskCategory) -> Color {
+        switch category {
+        case .meeting: return Color.blue
+        case .review: return Color.green
+        case .development: return Color.orange
+        case .design: return Color.purple
+        case .communication: return Color.cyan
+        case .presentation: return Color.red
+        case .milestone: return Color.yellow
+        case .planning: return Color.indigo
+        case .testing: return Color.pink
+        case .documentation: return Color.brown
+        case .custom: return Color.gray
         }
     }
 }
 
-// MARK: - Project Task Model
-struct ProjectTask: Identifiable {
-    let id: UUID
-    let title: String
-    let description: String?
-    let assignee: TeamMember
-    let status: TaskStatus
-    let priority: TaskPriority
-    let timeLogged: TimeInterval
-    let dueDate: Date
-    let completedDate: Date?
-    
-    enum TaskStatus {
-        case pending, inProgress, completed, overdue
-    }
-    
-    var formattedTimeLogged: String {
-        let hours = Int(timeLogged) / 3600
-        return "\(hours)小时"
-    }
-    
-    var isOverdue: Bool {
-        return Date() > dueDate && status != .completed
-    }
-}
+
 
 // MARK: - AI Assistant View
 struct AIAssistantView: View {
