@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreTransferable
+import SwiftUI
 
 // MARK: - Database-compatible Task Model
 struct Task: Identifiable, Codable {
@@ -25,6 +26,8 @@ struct Task: Identifiable, Codable {
     let updatedAt: Date
     let projectId: UUID?
     let assigneeId: UUID?
+    let estimatedHours: Double?  // 预估所需时间（小时）
+    let actualHours: Double?     // 实际花费时间（小时）
     
     init(
         id: UUID = UUID(),
@@ -41,7 +44,9 @@ struct Task: Identifiable, Codable {
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         projectId: UUID? = nil,
-        assigneeId: UUID? = nil
+        assigneeId: UUID? = nil,
+        estimatedHours: Double? = nil,
+        actualHours: Double? = nil
     ) {
         self.id = id
         self.title = title
@@ -58,6 +63,8 @@ struct Task: Identifiable, Codable {
         self.updatedAt = updatedAt
         self.projectId = projectId
         self.assigneeId = assigneeId
+        self.estimatedHours = estimatedHours
+        self.actualHours = actualHours
     }
     
     // MARK: - Computed Properties
@@ -85,6 +92,28 @@ struct Task: Identifiable, Codable {
             return "\(hours)h"
         } else {
             return "\(remainingMinutes)m"
+        }
+    }
+    
+    /// 格式化预估时间
+    var formattedEstimatedTime: String? {
+        guard let hours = estimatedHours else { return nil }
+        if hours >= 1 {
+            return String(format: "%.1fh", hours)
+        } else {
+            let minutes = Int(hours * 60)
+            return "\(minutes)m"
+        }
+    }
+    
+    /// 格式化实际时间
+    var formattedActualTime: String? {
+        guard let hours = actualHours else { return nil }
+        if hours >= 1 {
+            return String(format: "%.1fh", hours)
+        } else {
+            let minutes = Int(hours * 60)
+            return "\(minutes)m"
         }
     }
 }
@@ -131,6 +160,38 @@ enum TaskCategory: String, CaseIterable, Codable {
         case .testing: return "测试"
         case .documentation: return "文档"
         case .custom: return "自定义"
+        }
+    }
+    
+    var iconName: String {
+        switch self {
+        case .meeting: return "person.2"
+        case .review: return "checkmark.circle"
+        case .development: return "hammer"
+        case .design: return "paintbrush"
+        case .communication: return "message"
+        case .presentation: return "presentation"
+        case .milestone: return "flag"
+        case .planning: return "calendar"
+        case .testing: return "testtube.2"
+        case .documentation: return "doc.text"
+        case .custom: return "tag"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .meeting: return .blue
+        case .review: return .green
+        case .development: return .orange
+        case .design: return .purple
+        case .communication: return .cyan
+        case .presentation: return .indigo
+        case .milestone: return .red
+        case .planning: return .mint
+        case .testing: return .yellow
+        case .documentation: return .gray
+        case .custom: return .secondary
         }
     }
     
@@ -363,5 +424,186 @@ struct ProjectStatistics {
     
     var onHoldProjects: Int {
         totalProjects - activeProjects - completedProjects
+    }
+}
+
+// MARK: - Team Collaboration Models
+struct Team: Identifiable, Codable {
+    let id: UUID
+    let name: String
+    let description: String
+    let icon: String
+    let color: String
+    let members: [TeamMember]
+    let isActive: Bool
+    let totalTasks: Int
+    let activeTasks: Int
+    let completedTasks: Int
+    let recentActivity: [TeamActivity]
+    let createdAt: Date
+    
+    init(
+        id: UUID = UUID(),
+        name: String,
+        description: String,
+        icon: String = "person.3.fill",
+        color: String = "#3B82F6",
+        members: [TeamMember] = [],
+        isActive: Bool = true,
+        totalTasks: Int = 0,
+        activeTasks: Int = 0,
+        completedTasks: Int = 0,
+        recentActivity: [TeamActivity] = [],
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.icon = icon
+        self.color = color
+        self.members = members
+        self.isActive = isActive
+        self.totalTasks = totalTasks
+        self.activeTasks = activeTasks
+        self.completedTasks = completedTasks
+        self.recentActivity = recentActivity
+        self.createdAt = createdAt
+    }
+}
+
+struct TeamInvitation: Identifiable, Codable {
+    let id: UUID
+    let teamName: String
+    let inviterName: String
+    let teamDescription: String
+    let invitedAt: Date
+    
+    init(
+        id: UUID = UUID(),
+        teamName: String,
+        inviterName: String,
+        teamDescription: String,
+        invitedAt: Date = Date()
+    ) {
+        self.id = id
+        self.teamName = teamName
+        self.inviterName = inviterName
+        self.teamDescription = teamDescription
+        self.invitedAt = invitedAt
+    }
+}
+
+struct TeamActivity: Identifiable, Codable {
+    let id: UUID
+    let icon: String
+    let description: String
+    let timestamp: Date
+    
+    init(
+        id: UUID = UUID(),
+        icon: String,
+        description: String,
+        timestamp: Date = Date()
+    ) {
+        self.id = id
+        self.icon = icon
+        self.description = description
+        self.timestamp = timestamp
+    }
+}
+
+// MARK: - Time Statistics Models
+
+struct ProjectTimeStats: Identifiable {
+    let id = UUID()
+    let projectId: UUID
+    let totalEstimatedHours: Double
+    let totalActualHours: Double
+    let completedTasks: Int
+    let totalTasks: Int
+    
+    var efficiency: Double {
+        guard totalEstimatedHours > 0 else { return 0 }
+        return totalActualHours / totalEstimatedHours
+    }
+    
+    var formattedEstimatedTime: String {
+        formatHours(totalEstimatedHours)
+    }
+    
+    var formattedActualTime: String {
+        formatHours(totalActualHours)
+    }
+    
+    private func formatHours(_ hours: Double) -> String {
+        if hours >= 1 {
+            return String(format: "%.1fh", hours)
+        } else {
+            let minutes = Int(hours * 60)
+            return "\(minutes)m"
+        }
+    }
+}
+
+struct DailyTimeStats: Identifiable {
+    let id = UUID()
+    let date: Date
+    let totalHours: Double
+    let completedTasks: Int
+    let projectStats: [ProjectTimeStats]
+    
+    var formattedTotalTime: String {
+        if totalHours >= 1 {
+            return String(format: "%.1fh", totalHours)
+        } else {
+            let minutes = Int(totalHours * 60)
+            return "\(minutes)m"
+        }
+    }
+}
+
+struct WeeklyTimeStats: Identifiable {
+    let id = UUID()
+    let weekStart: Date
+    let weekEnd: Date
+    let totalHours: Double
+    let dailyStats: [DailyTimeStats]
+    let projectStats: [ProjectTimeStats]
+    
+    var formattedTotalTime: String {
+        if totalHours >= 1 {
+            return String(format: "%.1fh", totalHours)
+        } else {
+            let minutes = Int(totalHours * 60)
+            return "\(minutes)m"
+        }
+    }
+    
+    var averageDailyHours: Double {
+        return totalHours / 7.0
+    }
+}
+
+struct MonthlyTimeStats: Identifiable {
+    let id = UUID()
+    let monthStart: Date
+    let monthEnd: Date
+    let totalHours: Double
+    let weeklyStats: [WeeklyTimeStats]
+    let projectStats: [ProjectTimeStats]
+    
+    var formattedTotalTime: String {
+        if totalHours >= 1 {
+            return String(format: "%.1fh", totalHours)
+        } else {
+            let minutes = Int(totalHours * 60)
+            return "\(minutes)m"
+        }
+    }
+    
+    var averageDailyHours: Double {
+        let calendar = Calendar.current
+        let days = calendar.dateComponents([.day], from: monthStart, to: monthEnd).day ?? 30
+        return totalHours / Double(days)
     }
 }

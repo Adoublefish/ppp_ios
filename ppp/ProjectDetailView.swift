@@ -77,7 +77,7 @@ struct ProjectDetailView: View {
         }
     }
     
-    // MARK: - Compact Header View (10% of screen)
+    // MARK: - Compact Header View - 优化顶部距离
     private var compactHeaderView: some View {
         HStack {
             // Back Button
@@ -111,8 +111,8 @@ struct ProjectDetailView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 30) // reduced from 60
-        .padding(.bottom, 16) // reduced from 16
+        .padding(.top, 8) // 大幅减少顶部距离
+        .padding(.bottom, 8) // 减少底部距离
         .background(Color(hex: project.color))
     }
     

@@ -69,8 +69,8 @@ struct TeamMemberManagementView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 60)
-        .padding(.bottom, 16)
+        .padding(.top, 8) // 大幅减少顶部距离
+        .padding(.bottom, 8) // 减少底部距离
         .background(Color(.systemBackground))
     }
 }
@@ -105,11 +105,6 @@ struct TeamMemberRowView: View {
             }
             
             Spacer()
-            
-            // Online Status
-            Circle()
-                .fill(member.isOnline ? Color.green : Color.gray)
-                .frame(width: 8, height: 8)
             
             // Actions
             Menu {
@@ -199,18 +194,6 @@ struct AddTeamMemberView: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
                 
-                // Online Status
-                HStack {
-                    Text("在线状态")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: $isOnline)
-                }
-                
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -240,7 +223,7 @@ struct AddTeamMemberView: View {
             name: name,
             avatar: selectedAvatar,
             role: role.isEmpty ? nil : role,
-            isOnline: isOnline
+            isOnline: false // 默认设置为离线，不显示在线状态
         )
         dataManager.addTeamMember(newMember)
         dismiss()
@@ -328,18 +311,6 @@ struct EditTeamMemberView: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
                 
-                // Online Status
-                HStack {
-                    Text("在线状态")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: $isOnline)
-                }
-                
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -370,7 +341,7 @@ struct EditTeamMemberView: View {
             name: name,
             avatar: selectedAvatar,
             role: role.isEmpty ? nil : role,
-            isOnline: isOnline
+            isOnline: false // 不显示在线状态
         )
         dataManager.updateTeamMember(updatedMember)
         dismiss()

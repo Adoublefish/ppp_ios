@@ -10,7 +10,7 @@ import SwiftUI
 struct DashboardView: View {
     @State private var selectedDate = Date()
     @State private var showingDatePicker = false
-    @State private var selectedTab = 0
+
     @State private var showingTaskInput = false
     @State private var selectedTask: Task? = nil
     @ObservedObject private var dataManager = TaskDataManager.shared
@@ -74,55 +74,34 @@ struct DashboardView: View {
         ZStack {
             // Main Content
             VStack(spacing: 0) {
-                // Conditional Content based on selected tab
-                if selectedTab == 0 {
-                    // Home Tab - Dashboard
-                    VStack(spacing: 0) {
-                        // Simple Header
-                        headerView
-                        
-                        // Main Content
-                        HStack(spacing: 0) {
-                            // Left Timeline (35% width)
-                            timelineView
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(Color(.systemGray6).opacity(0.3))
-                            
-                            // Right Content (65% width)
-                            VStack(spacing: 16) {
-                                // All Deadlines Section (Top)
-                                allDeadlinesSection
-                                
-                                // Today's Completed Tasks Section (Bottom)
-                                todayCompletedSection
-                            }
+                // Dashboard Content
+                VStack(spacing: 0) {
+                    // Simple Header
+                    headerView
+                    
+                    // Main Content
+                    HStack(spacing: 0) {
+                        // Left Timeline (35% width)
+                        timelineView
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 16)
-                            .background(Color(.systemBackground))
+                            .background(Color.backgroundPrimary.opacity(0.4))
+                        
+                        // Right Content (65% width)
+                        VStack(spacing: 16) {
+                            // All Deadlines Section (Top)
+                            allDeadlinesSection
+                            
+                            // Today's Completed Tasks Section (Bottom)
+                            todayCompletedSection
                         }
-                    }
-                } else if selectedTab == 1 {
-                    // Projects Tab
-                    ProjectOverviewView()
-                } else {
-                    // Placeholder for other tabs
-                    VStack {
-                        Spacer()
-                        Text("即将推出")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
-                        Text("敬请期待更多功能")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Spacer()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        .background(Color.backgroundSecondary)
                     }
                 }
-                
-                // Bottom Navigation Bar
-                bottomNavigationBar
             }
-            .background(Color(.systemBackground))
+            .background(Color.backgroundSecondary)
         }
         .sheet(isPresented: $showingDatePicker) {
             datePickerSheet
@@ -144,32 +123,108 @@ struct DashboardView: View {
 // MARK: - Header
 extension DashboardView {
     private var headerView: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(formatSelectedDate())
-                    .font(.title2)
-                    .fontWeight(.semibold)
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(formatSelectedDate())
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text(formatSelectedWeekday())
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
                 
-                Text(formatSelectedWeekday())
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                Spacer()
+                
+                Button("切换日期") {
+                    showingDatePicker = true
+                }
+                .font(.subheadline)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
             }
             
-            Spacer()
-            
-            Button("切换日期") {
-                showingDatePicker = true
-            }
-            .font(.subheadline)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(12)
+            // Daily time stats
+            dailyTimeStatsView
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Color(.systemBackground))
+        .background(Color.backgroundSecondary)
+    }
+    
+    private var dailyTimeStatsView: some View {
+        let dailyStats = dataManager.getDailyTimeStats(for: selectedDate)
+        
+        return HStack(spacing: 16) {
+            // Total time for the day
+            VStack(spacing: 4) {
+                Text(dailyStats.formattedTotalTime)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.blue)
+                
+                Text("今日时长")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.blue.opacity(0.1))
+            .cornerRadius(8)
+            
+            // Completed tasks count
+            VStack(spacing: 4) {
+                Text("\(dailyStats.completedTasks)")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.green)
+                
+                Text("完成任务")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.green.opacity(0.1))
+            .cornerRadius(8)
+            
+            // Project count for the day
+            VStack(spacing: 4) {
+                Text("\(dailyStats.projectStats.count)")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.orange)
+                
+                Text("涉及项目")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(8)
+            
+            // View detailed stats button
+            NavigationLink(destination: TimeStatsView()) {
+                VStack(spacing: 4) {
+                    Image(systemName: "chart.bar")
+                        .font(.title3)
+                        .foregroundColor(.purple)
+                    
+                    Text("详细统计")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(Color.purple.opacity(0.1))
+                .cornerRadius(8)
+            }
+        }
     }
     
     private var datePickerSheet: some View {
@@ -543,6 +598,26 @@ extension DashboardView {
         }
     }
     
+    private func formatDueDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        if calendar.isDate(date, inSameDayAs: now) {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            return "今天 \(formatter.string(from: date))"
+        } else if calendar.isDate(date, inSameDayAs: calendar.date(byAdding: .day, value: 1, to: now)!) {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            return "明天 \(formatter.string(from: date))"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "M月d日"
+            formatter.locale = Locale(identifier: "zh_CN")
+            return formatter.string(from: date)
+        }
+    }
+    
     private func deadlineTaskRow(_ task: Task) -> some View {
         let urgencyColor: Color = {
             guard let dueDate = task.dueDate else { return .secondary }
@@ -563,7 +638,7 @@ extension DashboardView {
                 }
                 .buttonStyle(PlainButtonStyle())
                 
-                // Task content
+                // Task content - 显示title、description、团队和due date
                 VStack(alignment: .leading, spacing: 4) {
                     Text(task.title)
                         .font(.subheadline)
@@ -577,35 +652,47 @@ extension DashboardView {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     
-                    HStack {
-                        Text(task.category.displayName)
-                            .font(.caption2)
+                    // 团队和截止日期信息
+                    HStack(spacing: 8) {
+                        // 显示所属团队
+                        if let projectId = task.projectId,
+                           let project = dataManager.getProject(byId: projectId),
+                           let team = dataManager.getTeamByProjectId(projectId) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                                Text(team.name)
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                            }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(urgencyColor.opacity(0.1))
-                            .foregroundColor(urgencyColor)
+                            .background(Color.blue.opacity(0.1))
                             .cornerRadius(4)
+                        }
                         
                         Spacer()
                         
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(urgencyColor)
-                                .frame(width: 6, height: 6)
-                            
-                            Text(task.dueDate.map(formatAbsoluteDueTime) ?? "无截止时间")
-                                .font(.caption)
-                                .foregroundColor(urgencyColor)
+                        // 显示截止日期
+                        if let dueDate = task.dueDate {
+                            HStack(spacing: 4) {
+                                Image(systemName: "clock")
+                                    .font(.caption2)
+                                    .foregroundColor(urgencyColor)
+                                Text(formatDueDate(dueDate))
+                                    .font(.caption2)
+                                    .foregroundColor(urgencyColor)
+                            }
                         }
                     }
                 }
                 
                 Spacer()
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(urgencyColor.opacity(0.05))
-            .cornerRadius(8)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .neumorphism(cornerRadius: 12)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -702,101 +789,15 @@ extension DashboardView {
                 }
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(Color.green.opacity(0.05))
-        .cornerRadius(8)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .neumorphism(cornerRadius: 12)
         }
         .buttonStyle(PlainButtonStyle())
     }
 }
 
-// MARK: - Bottom Navigation Bar
-extension DashboardView {
-    private var bottomNavigationBar: some View {
-        HStack {
-            // Home
-            bottomNavButton(
-                icon: "house",
-                title: "首页",
-                isSelected: selectedTab == 0,
-                action: { selectedTab = 0 }
-            )
-            
-            Spacer()
-            
-            // Project
-            bottomNavButton(
-                icon: "folder",
-                title: "项目",
-                isSelected: selectedTab == 1,
-                action: { selectedTab = 1 }
-            )
-            
-            Spacer()
-            
-            // Add Button (Large Center)
-            Button(action: {
-                showingTaskInput = true
-            }) {
-                Image(systemName: "plus")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .frame(width: 56, height: 56)
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.blue, Color.purple]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .clipShape(Circle())
-                    .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
-            }
-            
-            Spacer()
-            
-            // Team
-            bottomNavButton(
-                icon: "person.3",
-                title: "团队",
-                isSelected: selectedTab == 3,
-                action: { selectedTab = 3 }
-            )
-            
-            Spacer()
-            
-            // Me
-            bottomNavButton(
-                icon: "person.circle",
-                title: "我的",
-                isSelected: selectedTab == 4,
-                action: { selectedTab = 4 }
-            )
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(
-            Color(.systemBackground)
-                .shadow(color: Color.black.opacity(0.1), radius: 1, x: 0, y: -1)
-        )
-    }
-    
-    private func bottomNavButton(icon: String, title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(isSelected ? .blue : .secondary)
-                
-                Text(title)
-                    .font(.caption2)
-                    .foregroundColor(isSelected ? .blue : .secondary)
-            }
-        }
-    }
-}
+
 
 // MARK: - Helper Functions
 extension DashboardView {

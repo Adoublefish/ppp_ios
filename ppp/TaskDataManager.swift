@@ -13,9 +13,14 @@ class TaskDataManager: ObservableObject {
     
     @Published var allTasks: [Task] = []
     @Published var allProjects: [Project] = []
+    @Published var teams: [Team] = []
+    @Published var teamInvitations: [TeamInvitation] = []
+    @Published var teamMembers: [TeamMember] = []
     
     private let tasksKey = "SavedTasks"
     private let projectsKey = "SavedProjects"
+    private let teamsKey = "SavedTeams"
+    private let teamInvitationsKey = "SavedTeamInvitations"
     
     private init() {
         // 清空所有现有数据，只保留eero项目的两个任务
@@ -23,6 +28,7 @@ class TaskDataManager: ObservableObject {
         loadCustomCategories()  // 加载自定义类别
         loadTeamMembers()       // 加载团队成员
         createSampleData()
+        loadTeamData()          // 加载团队数据
     }
     
     // MARK: - Task Management
@@ -44,8 +50,41 @@ class TaskDataManager: ObservableObject {
         saveTasks()
     }
     
+    func updateTaskActualHours(_ task: Task, actualHours: Double) {
+        let updatedTask = Task(
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            startTime: task.startTime,
+            endTime: task.endTime,
+            dueDate: task.dueDate,
+            completedAt: task.completedAt,
+            isCompleted: task.isCompleted,
+            priority: task.priority,
+            category: task.category,
+            customCategoryId: task.customCategoryId,
+            createdAt: task.createdAt,
+            updatedAt: Date(),
+            projectId: task.projectId,
+            assigneeId: task.assigneeId,
+            estimatedHours: task.estimatedHours,
+            actualHours: actualHours
+        )
+        updateTask(updatedTask)
+    }
+    
     func toggleTaskCompletion(_ task: Task) {
         var updatedTask = task
+        let newCompletionState = !task.isCompleted
+        let completedAt = newCompletionState ? Date() : nil
+        
+        // Calculate actual hours for meeting tasks when completed
+        var actualHours = task.actualHours
+        if newCompletionState && task.category == .meeting && task.startTime != nil && task.endTime != nil {
+            let timeInterval = task.endTime!.timeIntervalSince(task.startTime!)
+            actualHours = timeInterval / 3600.0 // Convert seconds to hours
+        }
+        
         updatedTask = Task(
             id: task.id,
             title: task.title,
@@ -53,15 +92,17 @@ class TaskDataManager: ObservableObject {
             startTime: task.startTime,
             endTime: task.endTime,
             dueDate: task.dueDate,
-            completedAt: task.isCompleted ? nil : Date(),
-            isCompleted: !task.isCompleted,
+            completedAt: completedAt,
+            isCompleted: newCompletionState,
             priority: task.priority,
             category: task.category,
             customCategoryId: task.customCategoryId,
             createdAt: task.createdAt,
             updatedAt: Date(),
             projectId: task.projectId,
-            assigneeId: task.assigneeId
+            assigneeId: task.assigneeId,
+            estimatedHours: task.estimatedHours,
+            actualHours: actualHours
         )
         updateTask(updatedTask)
     }
@@ -88,6 +129,39 @@ class TaskDataManager: ObservableObject {
         return allProjects.first { $0.name == name }
     }
     
+    /// 获取团队的项目
+    func getTeamProjects(teamId: UUID) -> [Project] {
+        return allProjects.filter { $0.ownerId == teamId }
+    }
+    
+    /// 获取个人项目（非团队项目）
+    func getPersonalProjects() -> [Project] {
+        let teamIds = Set(teams.map { $0.id })
+        return allProjects.filter { !teamIds.contains($0.ownerId) }
+    }
+    
+    /// 根据项目ID获取所属团队
+    func getTeamByProjectId(_ projectId: UUID) -> Team? {
+        guard let project = getProject(byId: projectId) else { return nil }
+        return teams.first { $0.id == project.ownerId }
+    }
+    
+
+    
+    /// 获取团队的所有任务
+    func getTeamTasks(teamId: UUID) -> [Task] {
+        let teamProjectIds = getTeamProjects(teamId: teamId).map { $0.id }
+        return allTasks.filter { task in
+            guard let projectId = task.projectId else { return false }
+            return teamProjectIds.contains(projectId)
+        }.sorted { task1, task2 in
+            // 按截止日期排序，没有截止日期的排在后面
+            guard let due1 = task1.dueDate else { return false }
+            guard let due2 = task2.dueDate else { return true }
+            return due1 < due2
+        }
+    }
+    
     // MARK: - Data Filtering
     
     func tasksForProject(_ projectId: UUID) -> [Task] {
@@ -110,6 +184,159 @@ class TaskDataManager: ObservableObject {
         }
     }
     
+    // MARK: - Time Statistics
+    
+    /// 获取项目的时间统计
+    func getProjectTimeStats(projectId: UUID) -> ProjectTimeStats {
+        let projectTasks = tasksForProject(projectId)
+        let estimatedHours = projectTasks.compactMap { $0.estimatedHours }.reduce(0, +)
+        let actualHours = projectTasks.compactMap { $0.actualHours }.reduce(0, +)
+        
+        return ProjectTimeStats(
+            projectId: projectId,
+            totalEstimatedHours: estimatedHours,
+            totalActualHours: actualHours,
+            completedTasks: projectTasks.filter { $0.isCompleted }.count,
+            totalTasks: projectTasks.count
+        )
+    }
+    
+    /// 获取每日时间统计
+    func getDailyTimeStats(for date: Date) -> DailyTimeStats {
+        let calendar = Calendar.current
+        let dayTasks = allTasks.filter { task in
+            if let completedAt = task.completedAt {
+                return calendar.isDate(completedAt, inSameDayAs: date)
+            }
+            return false
+        }
+        
+        let totalHours = dayTasks.compactMap { $0.actualHours }.reduce(0, +)
+        let tasksByProject = Dictionary(grouping: dayTasks) { $0.projectId }
+        
+        var projectStats: [ProjectTimeStats] = []
+        for (projectId, tasks) in tasksByProject {
+            if let projectId = projectId {
+                let estimatedHours = tasks.compactMap { $0.estimatedHours }.reduce(0, +)
+                let actualHours = tasks.compactMap { $0.actualHours }.reduce(0, +)
+                projectStats.append(ProjectTimeStats(
+                    projectId: projectId,
+                    totalEstimatedHours: estimatedHours,
+                    totalActualHours: actualHours,
+                    completedTasks: tasks.count,
+                    totalTasks: tasks.count
+                ))
+            }
+        }
+        
+        return DailyTimeStats(
+            date: date,
+            totalHours: totalHours,
+            completedTasks: dayTasks.count,
+            projectStats: projectStats
+        )
+    }
+    
+    /// 获取每周时间统计
+    func getWeeklyTimeStats(for date: Date) -> WeeklyTimeStats {
+        let calendar = Calendar.current
+        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date) else {
+            return WeeklyTimeStats(weekStart: date, weekEnd: date, totalHours: 0, dailyStats: [], projectStats: [])
+        }
+        
+        let weekTasks = allTasks.filter { task in
+            if let completedAt = task.completedAt {
+                return weekInterval.contains(completedAt)
+            }
+            return false
+        }
+        
+        let totalHours = weekTasks.compactMap { $0.actualHours }.reduce(0, +)
+        
+        // 按日期分组
+        var dailyStats: [DailyTimeStats] = []
+        var currentDate = weekInterval.start
+        while currentDate < weekInterval.end {
+            dailyStats.append(getDailyTimeStats(for: currentDate))
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        }
+        
+        // 按项目分组
+        let tasksByProject = Dictionary(grouping: weekTasks) { $0.projectId }
+        var projectStats: [ProjectTimeStats] = []
+        for (projectId, tasks) in tasksByProject {
+            if let projectId = projectId {
+                let estimatedHours = tasks.compactMap { $0.estimatedHours }.reduce(0, +)
+                let actualHours = tasks.compactMap { $0.actualHours }.reduce(0, +)
+                projectStats.append(ProjectTimeStats(
+                    projectId: projectId,
+                    totalEstimatedHours: estimatedHours,
+                    totalActualHours: actualHours,
+                    completedTasks: tasks.count,
+                    totalTasks: tasks.count
+                ))
+            }
+        }
+        
+        return WeeklyTimeStats(
+            weekStart: weekInterval.start,
+            weekEnd: weekInterval.end,
+            totalHours: totalHours,
+            dailyStats: dailyStats,
+            projectStats: projectStats
+        )
+    }
+    
+    /// 获取每月时间统计
+    func getMonthlyTimeStats(for date: Date) -> MonthlyTimeStats {
+        let calendar = Calendar.current
+        guard let monthInterval = calendar.dateInterval(of: .month, for: date) else {
+            return MonthlyTimeStats(monthStart: date, monthEnd: date, totalHours: 0, weeklyStats: [], projectStats: [])
+        }
+        
+        let monthTasks = allTasks.filter { task in
+            if let completedAt = task.completedAt {
+                return monthInterval.contains(completedAt)
+            }
+            return false
+        }
+        
+        let totalHours = monthTasks.compactMap { $0.actualHours }.reduce(0, +)
+        
+        // 按周分组
+        var weeklyStats: [WeeklyTimeStats] = []
+        var currentDate = monthInterval.start
+        while currentDate < monthInterval.end {
+            weeklyStats.append(getWeeklyTimeStats(for: currentDate))
+            currentDate = calendar.date(byAdding: .weekOfYear, value: 1, to: currentDate) ?? currentDate
+        }
+        
+        // 按项目分组
+        let tasksByProject = Dictionary(grouping: monthTasks) { $0.projectId }
+        var projectStats: [ProjectTimeStats] = []
+        for (projectId, tasks) in tasksByProject {
+            if let projectId = projectId {
+                let estimatedHours = tasks.compactMap { $0.estimatedHours }.reduce(0, +)
+                let actualHours = tasks.compactMap { $0.actualHours }.reduce(0, +)
+                projectStats.append(ProjectTimeStats(
+                    projectId: projectId,
+                    totalEstimatedHours: estimatedHours,
+                    totalActualHours: actualHours,
+                    completedTasks: tasks.count,
+                    totalTasks: tasks.count
+                ))
+            }
+        }
+        
+        return MonthlyTimeStats(
+            monthStart: monthInterval.start,
+            monthEnd: monthInterval.end,
+            totalHours: totalHours,
+            weeklyStats: weeklyStats,
+            projectStats: projectStats
+        )
+    }
+    
     // MARK: - Data Management
     
     /// 清空所有保存的数据
@@ -128,7 +355,6 @@ class TaskDataManager: ObservableObject {
     
     // MARK: - 用户管理
     
-    @Published var teamMembers: [TeamMember] = []
     private let teamMembersKey = "team_members"
     
     /// 获取所有可用的用户列表
@@ -354,6 +580,169 @@ class TaskDataManager: ObservableObject {
         allTasks = sampleTasks
         saveTasks()
     }
+    
+    // MARK: - Team Data Management
+    
+    func loadTeamData() {
+        loadTeams()
+        loadInvitations()
+    }
+    
+    // MARK: - Team Management
+    func addTeam(_ team: Team) {
+        teams.append(team)
+        saveTeams()
+    }
+    
+    func updateTeam(_ team: Team) {
+        if let index = teams.firstIndex(where: { $0.id == team.id }) {
+            teams[index] = team
+            saveTeams()
+        }
+    }
+    
+    func deleteTeam(_ teamId: UUID) {
+        teams.removeAll { $0.id == teamId }
+        saveTeams()
+    }
+    
+    // MARK: - Invitation Management
+    func addInvitation(_ invitation: TeamInvitation) {
+        teamInvitations.append(invitation)
+        saveInvitations()
+    }
+    
+    func acceptInvitation(_ invitationId: UUID) {
+        if let invitation = teamInvitations.first(where: { $0.id == invitationId }) {
+            // Create a new team based on invitation
+            let newTeam = Team(
+                name: invitation.teamName,
+                description: invitation.teamDescription,
+                members: [teamMembers.first ?? TeamMember(name: "Me")],
+                totalTasks: Int.random(in: 5...25),
+                activeTasks: Int.random(in: 2...8),
+                completedTasks: Int.random(in: 3...15),
+                recentActivity: generateSampleActivity()
+            )
+            addTeam(newTeam)
+        }
+        removeInvitation(invitationId)
+    }
+    
+    func declineInvitation(_ invitationId: UUID) {
+        removeInvitation(invitationId)
+    }
+    
+    private func removeInvitation(_ invitationId: UUID) {
+        teamInvitations.removeAll { $0.id == invitationId }
+        saveInvitations()
+    }
+    
+    // MARK: - Team Data Persistence
+    private func saveTeams() {
+        if let encoded = try? JSONEncoder().encode(teams) {
+            UserDefaults.standard.set(encoded, forKey: teamsKey)
+        }
+    }
+    
+    private func loadTeams() {
+        if let data = UserDefaults.standard.data(forKey: teamsKey),
+           let savedTeams = try? JSONDecoder().decode([Team].self, from: data) {
+            teams = savedTeams
+        } else {
+            createSampleTeams()
+        }
+    }
+    
+    private func saveInvitations() {
+        if let encoded = try? JSONEncoder().encode(teamInvitations) {
+            UserDefaults.standard.set(encoded, forKey: teamInvitationsKey)
+        }
+    }
+    
+    private func loadInvitations() {
+        if let data = UserDefaults.standard.data(forKey: teamInvitationsKey),
+           let savedInvitations = try? JSONDecoder().decode([TeamInvitation].self, from: data) {
+            teamInvitations = savedInvitations
+        } else {
+            createSampleInvitations()
+        }
+    }
+    
+    // MARK: - Team Sample Data
+    private func createSampleTeams() {
+        teams = [
+            Team(
+                name: "Work Team",
+                description: "Main development team for product features and sprint planning. Daily standups and weekly retrospectives.",
+                icon: "💼",
+                color: "#3B82F6",
+                members: Array(teamMembers.prefix(5)),
+                totalTasks: 23,
+                activeTasks: 8,
+                completedTasks: 15,
+                recentActivity: [
+                    TeamActivity(icon: "✅", description: "Sarah completed \"API Integration\"", timestamp: Calendar.current.date(byAdding: .hour, value: -2, to: Date())!),
+                    TeamActivity(icon: "📅", description: "Team meeting scheduled for tomorrow", timestamp: Calendar.current.date(byAdding: .hour, value: -4, to: Date())!),
+                    TeamActivity(icon: "🔄", description: "Mike started \"Database Migration\"", timestamp: Calendar.current.date(byAdding: .hour, value: -6, to: Date())!)
+                ]
+            ),
+            Team(
+                name: "CS Study Group",
+                description: "Computer Science study group for exam preparation and assignment collaboration. Weekly study sessions.",
+                icon: "📚",
+                color: "#10B981",
+                members: Array(teamMembers.prefix(3)),
+                totalTasks: 12,
+                activeTasks: 5,
+                completedTasks: 7,
+                recentActivity: [
+                    TeamActivity(icon: "📖", description: "Lisa shared \"Chapter 5 Notes\"", timestamp: Calendar.current.date(byAdding: .hour, value: -1, to: Date())!),
+                    TeamActivity(icon: "📅", description: "Study session scheduled for Friday", timestamp: Calendar.current.date(byAdding: .day, value: -1, to: Date())!)
+                ]
+            ),
+            Team(
+                name: "Dance Crew",
+                description: "Weekly dance practice sessions and performance preparation. Fun and energetic group activities.",
+                icon: "💃",
+                color: "#F59E0B",
+                members: teamMembers,
+                totalTasks: 8,
+                activeTasks: 3,
+                completedTasks: 5,
+                recentActivity: [
+                    TeamActivity(icon: "🎵", description: "New choreography shared by Anna", timestamp: Calendar.current.date(byAdding: .hour, value: -3, to: Date())!),
+                    TeamActivity(icon: "📅", description: "Practice session tomorrow 7 PM", timestamp: Calendar.current.date(byAdding: .hour, value: -5, to: Date())!)
+                ]
+            )
+        ]
+        saveTeams()
+    }
+    
+    private func createSampleInvitations() {
+        teamInvitations = [
+            TeamInvitation(
+                teamName: "Design Team",
+                inviterName: "Sarah Chen",
+                teamDescription: "Join our creative design team to collaborate on UI/UX projects and share design resources.",
+                invitedAt: Calendar.current.date(byAdding: .day, value: -2, to: Date())!
+            ),
+            TeamInvitation(
+                teamName: "Study Group",
+                inviterName: "Mike Johnson",
+                teamDescription: "Join our computer science study group for exam preparation and project collaboration.",
+                invitedAt: Calendar.current.date(byAdding: .weekOfYear, value: -1, to: Date())!
+            )
+        ]
+        saveInvitations()
+    }
+    
+    private func generateSampleActivity() -> [TeamActivity] {
+        return [
+            TeamActivity(icon: "✅", description: "Task completed", timestamp: Date()),
+            TeamActivity(icon: "📅", description: "Meeting scheduled", timestamp: Calendar.current.date(byAdding: .hour, value: -2, to: Date())!)
+        ]
+    }
 }
 
 // MARK: - Task Extensions for Mutable Operations
@@ -371,6 +760,8 @@ extension Task {
         customCategoryId: UUID? = nil,
         projectId: UUID? = nil,
         assigneeId: UUID? = nil,
+        estimatedHours: Double? = nil,
+        actualHours: Double? = nil,
         // 新增参数，用于明确是否要清除时间字段
         clearStartTime: Bool = false,
         clearEndTime: Bool = false,
@@ -392,7 +783,9 @@ extension Task {
             createdAt: self.createdAt,
             updatedAt: Date(),
             projectId: projectId ?? self.projectId,
-            assigneeId: clearAssignee ? nil : (assigneeId ?? self.assigneeId)
+            assigneeId: clearAssignee ? nil : (assigneeId ?? self.assigneeId),
+            estimatedHours: estimatedHours ?? self.estimatedHours,
+            actualHours: actualHours ?? self.actualHours
         )
     }
-} 
+}

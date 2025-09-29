@@ -72,8 +72,8 @@ struct AITaskBreakdownView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 60)
-        .padding(.bottom, 16)
+        .padding(.top, 8) // 大幅减少顶部距离
+        .padding(.bottom, 8) // 减少底部距离
         .background(Color(.systemBackground))
     }
     

@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import PhotosUI
+import Vision
 
 struct TaskDetailView: View {
     let task: Task
@@ -23,6 +25,7 @@ struct TaskDetailView: View {
     @State private var selectedProjectId: UUID?
     @State private var selectedAssigneeId: UUID?
     @State private var isCompleted: Bool = false
+    @State private var editedEstimatedHours: Double = 0.5
     
     @State private var isEditing = false
     @State private var showingDatePicker = false
@@ -31,6 +34,15 @@ struct TaskDetailView: View {
     @State private var showingProjectPicker = false
     @State private var showingAssigneePicker = false
     @State private var showingCategoryPicker = false
+    @State private var showingTimeInput = false
+    
+    // Photo and OCR functionality
+    @State private var selectedImage: UIImage?
+    @State private var showingImagePicker = false
+    @State private var showingCamera = false
+    @State private var extractedText = ""
+    @State private var isProcessingOCR = false
+    @State private var showingPhotoOptions = false
     
     // Computed properties
     private var currentTask: Task {
@@ -49,18 +61,18 @@ struct TaskDetailView: View {
                     // Header with completion toggle
                     headerSection
                     
-                    // Task Details
-                    taskDetailsSection
-                    
-                    // Project Association
-                    projectSection
-                    
-                    // Metadata
-                    metadataSection
-                    
-                    // Action Buttons
                     if isEditing {
-                        actionButtonsSection
+                        // Editing interface with consistent layout
+                        editingInterfaceSection
+                    } else {
+                        // Task Details (view mode)
+                        taskDetailsSection
+                        
+                        // Project Association
+                        projectSection
+                        
+                        // Metadata
+                        metadataSection
                     }
                 }
                 .padding(.horizontal, 20)
@@ -112,6 +124,33 @@ struct TaskDetailView: View {
         }
         .sheet(isPresented: $showingCategoryPicker) {
             categoryPickerSheet
+        }
+        .sheet(isPresented: $showingTimeInput) {
+            TaskTimeInputSheet(task: currentTask)
+        }
+        .sheet(isPresented: $showingImagePicker) {
+            ImagePicker(selectedImage: $selectedImage) { image in
+                if let image = image {
+                    processImageWithOCR(image)
+                }
+            }
+        }
+        .sheet(isPresented: $showingCamera) {
+            CameraView(selectedImage: $selectedImage) { image in
+                if let image = image {
+                    processImageWithOCR(image)
+                }
+            }
+        }
+        .actionSheet(isPresented: $showingPhotoOptions) {
+            ActionSheet(
+                title: Text("选择图片来源"),
+                buttons: [
+                    .default(Text("拍照")) { showingCamera = true },
+                    .default(Text("从相册选择")) { showingImagePicker = true },
+                    .cancel()
+                ]
+            )
         }
     }
     
@@ -170,16 +209,55 @@ struct TaskDetailView: View {
                 .fontWeight(.semibold)
             
             // Title
-            VStack(alignment: .leading, spacing: 8) {
-                Text("标题")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "textformat")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("任务标题")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    
+                    if isEditing {
+                        Text("*")
+                            .font(.subheadline)
+                            .foregroundColor(.red)
+                    }
+                    
+                    Spacer()
+                    
+                    if isEditing && !editedTitle.isEmpty {
+                        Text("\(editedTitle.count)/50")
+                            .font(.caption2)
+                            .foregroundColor(editedTitle.count > 45 ? .orange : .secondary)
+                    }
+                }
                 
                 if isEditing {
                     TextField("输入任务标题", text: $editedTitle)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
                         .font(.body)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(.systemBackground))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(
+                                            editedTitle.isEmpty ? 
+                                            Color(.systemGray4) : 
+                                            Color.blue.opacity(0.5),
+                                            lineWidth: editedTitle.isEmpty ? 1 : 1.5
+                                        )
+                                )
+                        )
+                        .onChange(of: editedTitle) { _, newValue in
+                            if newValue.count > 50 {
+                                editedTitle = String(newValue.prefix(50))
+                            }
+                        }
                 } else {
                     Text(currentTask.title)
                         .font(.body)
@@ -188,31 +266,68 @@ struct TaskDetailView: View {
             }
             
             // Description
-            VStack(alignment: .leading, spacing: 8) {
-                Text("描述")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "text.alignleft")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("任务描述")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    if isEditing && !editedDescription.isEmpty {
+                        Text("\(editedDescription.count)/500")
+                            .font(.caption2)
+                            .foregroundColor(editedDescription.count > 450 ? .orange : .secondary)
+                    }
+                }
                 
                 if isEditing {
                     ZStack(alignment: .topLeading) {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(.systemGray4), lineWidth: 1)
-                            .frame(minHeight: 100)
+                        // Background
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.systemBackground))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        editedDescription.isEmpty ? 
+                                        Color(.systemGray4) : 
+                                        Color.blue.opacity(0.5),
+                                        lineWidth: editedDescription.isEmpty ? 1 : 1.5
+                                    )
+                            )
+                            .frame(minHeight: 120)
                         
+                        // Text Editor
                         TextEditor(text: $editedDescription)
-                            .padding(12)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 16)
                             .background(Color.clear)
                             .font(.body)
+                            .scrollContentBackground(.hidden)
+                            .onChange(of: editedDescription) { _, newValue in
+                                if newValue.count > 500 {
+                                    editedDescription = String(newValue.prefix(500))
+                                }
+                            }
                         
+                        // Placeholder
                         if editedDescription.isEmpty {
-                            Text("输入任务描述...")
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 20)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("描述任务详情、要求或项目背景...")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 16)
+                            .allowsHitTesting(false)
                         }
                     }
+                    .animation(.easeInOut(duration: 0.2), value: editedDescription.isEmpty)
                 } else {
                     Text(currentTask.description.isEmpty ? "暂无描述" : currentTask.description)
                         .font(.body)
@@ -671,6 +786,48 @@ struct TaskDetailView: View {
                             .foregroundColor(.primary)
                     }
                 }
+                
+                // Estimated Hours
+                if let estimatedHours = currentTask.estimatedHours, estimatedHours > 0 {
+                    HStack {
+                        Text("预估工时")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            
+                            Text("\(formatEstimatedTime(estimatedHours)) 小时")
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                        }
+                    }
+                }
+                
+                // Actual Hours (if completed and has actual hours)
+                if currentTask.isCompleted, let actualHours = currentTask.actualHours, actualHours > 0 {
+                    HStack {
+                        Text("实际工时")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.fill")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                            
+                            Text("\(formatEstimatedTime(actualHours)) 小时")
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                        }
+                    }
+                }
             }
         }
         .padding(20)
@@ -679,9 +836,639 @@ struct TaskDetailView: View {
         .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
     }
     
+    // MARK: - Editing Interface Section
+    private var editingInterfaceSection: some View {
+        VStack(spacing: 20) {
+            // Task Title and Description
+            taskTitleAndDescriptionSection
+            
+            // Time Settings Section (similar to TaskInputView)
+            timeSettingsSection
+            
+            // Project Selection Section
+            projectSelectionSection
+            
+            // Assignee Selection Section
+            assigneeSelectionSection
+            
+            // Category Selection Section
+            categorySelectionSection
+            
+            // Enhanced editing features (Photo/OCR and Time Estimation)
+            actionButtonsSection
+        }
+    }
+    
+    private var taskTitleAndDescriptionSection: some View {
+        VStack(spacing: 16) {
+            // Task Title
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "textformat")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("任务标题")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    
+                    Text("*")
+                        .font(.subheadline)
+                        .foregroundColor(.red)
+                    
+                    Spacer()
+                    
+                    if !editedTitle.isEmpty {
+                        Text("\(editedTitle.count)/50")
+                            .font(.caption2)
+                            .foregroundColor(editedTitle.count > 45 ? .orange : .secondary)
+                    }
+                }
+                
+                TextField("输入任务标题", text: $editedTitle)
+                    .font(.body)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.systemBackground))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        editedTitle.isEmpty ? 
+                                        Color(.systemGray4) : 
+                                        Color.blue.opacity(0.5),
+                                        lineWidth: editedTitle.isEmpty ? 1 : 1.5
+                                    )
+                            )
+                    )
+                    .onChange(of: editedTitle) { _, newValue in
+                        if newValue.count > 50 {
+                            editedTitle = String(newValue.prefix(50))
+                        }
+                    }
+            }
+            
+            // Task Description
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "text.alignleft")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("任务描述")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    if !editedDescription.isEmpty {
+                        Text("\(editedDescription.count)/500")
+                            .font(.caption2)
+                            .foregroundColor(editedDescription.count > 450 ? .orange : .secondary)
+                    }
+                }
+                
+                ZStack(alignment: .topLeading) {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    editedDescription.isEmpty ? 
+                                    Color(.systemGray4) : 
+                                    Color.blue.opacity(0.5),
+                                    lineWidth: editedDescription.isEmpty ? 1 : 1.5
+                                )
+                        )
+                    
+                    TextEditor(text: $editedDescription)
+                        .font(.body)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.clear)
+                        .onChange(of: editedDescription) { _, newValue in
+                            if newValue.count > 500 {
+                                editedDescription = String(newValue.prefix(500))
+                            }
+                        }
+                    
+                    if editedDescription.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("描述任务详情、要求或项目背景...")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        .allowsHitTesting(false)
+                    }
+                }
+                .frame(minHeight: 100)
+                .animation(.easeInOut(duration: 0.2), value: editedDescription.isEmpty)
+            }
+        }
+        .padding(20)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+    
+    private var timeSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "clock")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text("时间设置")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
+            
+            VStack(spacing: 12) {
+                // Start Time
+                if editedStartTime != nil {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("开始时间")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Button(action: {
+                            showingStartTimePicker = true
+                        }) {
+                            HStack {
+                                Text(formatDateTime(editedStartTime ?? Date()))
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.systemBackground))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                
+                // End Time
+                if editedEndTime != nil {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("结束时间")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Button(action: {
+                            showingEndTimePicker = true
+                        }) {
+                            HStack {
+                                Text(formatDateTime(editedEndTime ?? Date()))
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.systemBackground))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                
+                // Due Date
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("截止时间")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        showingDatePicker = true
+                    }) {
+                        HStack {
+                            Text(formatDateTime(editedDueDate))
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(.systemBackground))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(.systemGray4), lineWidth: 1)
+                                )
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+        }
+        .padding(20)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+    
+    private var projectSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "folder")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text("关联项目")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                Text("(可选)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
+            
+            Button(action: {
+                showingProjectPicker = true
+            }) {
+                HStack(spacing: 12) {
+                    if let projectId = selectedProjectId,
+                       let project = dataManager.getProject(byId: projectId) {
+                        Circle()
+                            .fill(Color(hex: project.color))
+                            .frame(width: 12, height: 12)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(project.name)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                            
+                            if let description = project.description {
+                                Text(description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .multilineTextAlignment(.leading)
+                            }
+                        }
+                    } else {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                        
+                        Text("选择项目")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(20)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+    
+    private var assigneeSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "person")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text("负责人")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
+            
+            Button(action: {
+                showingAssigneePicker = true
+            }) {
+                HStack(spacing: 12) {
+                    if let assigneeId = selectedAssigneeId,
+                       let assignee = dataManager.getAllUsers().first(where: { $0.id == assigneeId }) {
+                        Image(systemName: assignee.avatar ?? "person.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(.blue)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(assignee.name)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                            
+                            if let role = assignee.role {
+                                Text(role)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.leading)
+                            }
+                        }
+                        
+                        if assignee.isOnline {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 8, height: 8)
+                        }
+                    } else {
+                        Image(systemName: "person.badge.plus")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                        
+                        Text("选择负责人")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(20)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+    
+    private var categorySelectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "tag")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text("任务分类")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
+            
+            // Category selection button
+            Button(action: {
+                showingCategoryPicker = true
+            }) {
+                HStack(spacing: 12) {
+                    if let customCategory = selectedCustomCategoryId,
+                       let category = dataManager.getCustomCategory(byId: customCategory) {
+                        Image(systemName: category.icon)
+                            .font(.subheadline)
+                            .foregroundColor(Color(hex: category.color))
+                            .frame(width: 20, height: 20)
+                        
+                        Text(category.name)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.leading)
+                    } else {
+                        Image(systemName: editedCategory.iconName)
+                            .font(.subheadline)
+                            .foregroundColor(editedCategory.color)
+                            .frame(width: 20, height: 20)
+                        
+                        Text(editedCategory.displayName)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.systemGray4), lineWidth: 1)
+                        )
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // Priority Selection - matching TaskInputView style
+            VStack(alignment: .leading, spacing: 12) {
+                Text("优先级")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                Picker("优先级", selection: $editedPriority) {
+                    ForEach(TaskPriority.allCases, id: \.self) { priority in
+                        Text(priorityDisplayName(priority))
+                            .tag(priority)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
+            }
+        }
+        .padding(20)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+
     // MARK: - Action Buttons Section
     private var actionButtonsSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
+            // Enhanced editing features
+            VStack(spacing: 12) {
+                // Photo and OCR Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("图片和OCR识别")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    if let selectedImage = selectedImage {
+                        Image(uiImage: selectedImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxHeight: 150)
+                            .cornerRadius(8)
+                            .onTapGesture {
+                                showingPhotoOptions = true
+                            }
+                    }
+                    
+                    Button(action: {
+                        showingPhotoOptions = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "camera.fill")
+                                .font(.title3)
+                            Text(selectedImage == nil ? "添加图片" : "更换图片")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundColor(.blue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    
+                    if isProcessingOCR {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("正在识别图片内容...")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    
+                    if !extractedText.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("识别结果:")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Text(extractedText)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(6)
+                            
+                            Button("将识别内容添加到描述") {
+                                if !editedDescription.isEmpty {
+                                    editedDescription += "\n\n" + extractedText
+                                } else {
+                                    editedDescription = extractedText
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        }
+                    }
+                }
+                .padding(16)
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                
+                // Time Estimation Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("预估工时")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    HStack {
+                        Text("预估工时:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Stepper(value: $editedEstimatedHours, in: 0.1...24.0, step: 0.5) {
+                            Text("\(editedEstimatedHours, specifier: "%.1f") 小时")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                    }
+                    
+                    // Quick time buttons
+                    HStack(spacing: 8) {
+                        ForEach([0.5, 1.0, 2.0, 4.0, 8.0], id: \.self) { hours in
+                            Button("\(hours, specifier: "%.1f")h") {
+                                editedEstimatedHours = hours
+                            }
+                            .font(.caption)
+                            .foregroundColor(editedEstimatedHours == hours ? .white : .blue)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(editedEstimatedHours == hours ? Color.blue : Color.blue.opacity(0.1))
+                            .cornerRadius(6)
+                        }
+                    }
+                }
+                .padding(16)
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+            }
+            
+            // Delete button
             Button("删除任务") {
                 deleteTask()
             }
@@ -998,6 +1785,7 @@ struct TaskDetailView: View {
         selectedProjectId = currentTask.projectId
         selectedAssigneeId = currentTask.assigneeId
         isCompleted = currentTask.isCompleted
+        editedEstimatedHours = currentTask.estimatedHours ?? 0.5
     }
     
     private func startEditing() {
@@ -1021,15 +1809,99 @@ struct TaskDetailView: View {
             category: editedCategory,
             customCategoryId: selectedCustomCategoryId,
             projectId: selectedProjectId,
-            assigneeId: selectedAssigneeId
+            assigneeId: selectedAssigneeId,
+            estimatedHours: editedEstimatedHours
         )
         
         dataManager.updateTask(updatedTask)
         isEditing = false
     }
     
+    private func processImageWithOCR(_ image: UIImage) {
+        isProcessingOCR = true
+        
+        // Convert UIImage to CGImage
+        guard let cgImage = image.cgImage else {
+            DispatchQueue.main.async {
+                self.isProcessingOCR = false
+                self.extractedText = "图片处理失败，请重试"
+            }
+            return
+        }
+        
+        // Create text recognition request
+        let textRecognitionRequest = VNRecognizeTextRequest { (request, error) in
+            DispatchQueue.main.async {
+                isProcessingOCR = false
+                
+                if let error = error {
+                    print("OCR 识别出错: \(error.localizedDescription)")
+                    extractedText = "文字识别失败，请重试"
+                    return
+                }
+                
+                guard let observations = request.results as? [VNRecognizedTextObservation] else {
+                    print("没有检测到文本")
+                    extractedText = "未检测到文字内容"
+                    return
+                }
+                
+                var recognizedText = ""
+                for observation in observations {
+                    guard let topCandidate = observation.topCandidates(1).first else { continue }
+                    recognizedText += topCandidate.string + "\n"
+                }
+                
+                if recognizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    extractedText = "未检测到文字内容，请确保图片清晰且包含文字"
+                } else {
+                    extractedText = recognizedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                
+                // Add success animation
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    // Animation will be handled by the UI
+                }
+            }
+        }
+        
+        // Configure recognition parameters for better accuracy
+        textRecognitionRequest.recognitionLevel = .accurate
+        textRecognitionRequest.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US"] // 支持简体中文、繁体中文和英文
+        textRecognitionRequest.usesLanguageCorrection = true
+        
+        // Create image request handler
+        let requestHandler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        
+        // Perform OCR on background queue
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try requestHandler.perform([textRecognitionRequest])
+            } catch {
+                DispatchQueue.main.async {
+                    self.isProcessingOCR = false
+                    self.extractedText = "文字识别过程中出现错误: \(error.localizedDescription)"
+                    print("执行文本识别请求时出错: \(error)")
+                }
+            }
+        }
+    }
+    
     private func toggleCompletion() {
-        dataManager.toggleTaskCompletion(currentTask)
+        if currentTask.isCompleted {
+            // If already completed, just toggle back
+            dataManager.toggleTaskCompletion(currentTask)
+        } else {
+            // If not completed, complete the task first
+            dataManager.toggleTaskCompletion(currentTask)
+            
+            // Show time input for non-meeting tasks or meeting tasks without actual time
+            if currentTask.category != .meeting || currentTask.actualHours == nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showingTimeInput = true
+                }
+            }
+        }
     }
     
     private func deleteTask() {
@@ -1137,35 +2009,20 @@ struct TaskDetailView: View {
             return currentTask.category.displayName
         }
     }
-}
-
-// MARK: - Color Extension
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
+    
+    /// 格式化预估工时显示
+    private func formatEstimatedTime(_ hours: Double) -> String {
+        if hours < 1 {
+            return String(format: "%.1f", hours)
+        } else if hours.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", hours)
+        } else {
+            return String(format: "%.1f", hours)
         }
-
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue:  Double(b) / 255,
-            opacity: Double(a) / 255
-        )
     }
 }
+
+
 
 #Preview {
     TaskDetailView(task: Task(
