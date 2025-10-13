@@ -78,22 +78,17 @@ struct ProjectOverviewView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Compact Header - 减少顶部距离
+            // Compact Header
             compactHeaderView
             
-            // Statistics Row - 减少内边距
-            statisticsRowView
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-            
-            // Filter Bar - 减少内边距
+            // Filter Bar
             filterBarView
                 .padding(.horizontal, 20)
-                .padding(.bottom, 8)
+                .padding(.vertical, 12)
             
             // Projects List
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: 12) {
                     // Personal Projects Section
                     if !filteredPersonalProjects.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
@@ -108,8 +103,8 @@ struct ProjectOverviewView: View {
                                     .font(.caption)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.blue.opacity(0.1))
-                                    .foregroundColor(.blue)
+                                    .background(Color.neuAccent.opacity(0.15))
+                                    .foregroundColor(.neuAccent)
                                     .cornerRadius(8)
                             }
                             .padding(.horizontal, 20)
@@ -170,9 +165,9 @@ struct ProjectOverviewView: View {
                 }
                 .padding(.bottom, 100) // Space for bottom navigation
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.neuBackground)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.neuBackground)
     }
     
     private func getTeamForProject(_ project: Project) -> Team {
@@ -180,91 +175,91 @@ struct ProjectOverviewView: View {
                Team(name: "Unknown Team", description: "Team not found")
     }
     
-    // MARK: - Compact Header View - 优化顶部距离
+    // MARK: - Compact Header View - Neumorphic Style
     private var compactHeaderView: some View {
         HStack {
             Text("项目概览")
                 .font(.title2)
                 .fontWeight(.bold)
-                .foregroundColor(.white)
+                .foregroundColor(.neuTextPrimary)
             
             Spacer()
             
-            Button(action: {
-                // Search action
-            }) {
-                Image(systemName: "magnifyingglass")
-                    .font(.title3)
-                    .foregroundColor(.white)
-            }
+            NeumorphicIconButton(
+                icon: "magnifyingglass",
+                size: 40,
+                iconSize: 18,
+                color: .neuBackground,
+                iconColor: .neuAccent,
+                action: {
+                    // Search action
+                }
+            )
         }
         .padding(.horizontal, 20)
-        .padding(.top, 8) // 大幅减少顶部距离
-        .padding(.bottom, 8) // 减少底部距离
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color(hex: "6366F1"), Color(hex: "8B5CF6")]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .background(Color.neuBackground)
     }
     
-    // MARK: - Statistics Row View
+    // MARK: - Statistics Row View - Neumorphic Style
     private var statisticsRowView: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 12) {
             VStack(spacing: 4) {
                 Text("\(statistics.totalProjects)")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(hex: "6366F1"))
+                    .foregroundColor(.neuAccent)
                 
                 Text("总项目")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.neuTextSecondary)
             }
             .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .neumorphicInset(cornerRadius: 16)
             
             VStack(spacing: 4) {
                 Text("\(statistics.activeProjects)")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(hex: "F59E0B"))
+                    .foregroundColor(.orange)
                 
                 Text("进行中")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.neuTextSecondary)
             }
             .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .neumorphicInset(cornerRadius: 16)
             
             VStack(spacing: 4) {
                 Text("\(statistics.completedProjects)")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(hex: "10B981"))
+                    .foregroundColor(.green)
                 
                 Text("已完成")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.neuTextSecondary)
             }
             .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .neumorphicInset(cornerRadius: 16)
         }
-        .padding(.vertical, 20)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
     }
     
-    // MARK: - Filter Bar View
+    // MARK: - Filter Bar View - Neumorphic Style
     private var filterBarView: some View {
-        HStack {
-            Text("全部")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color(.systemGray5))
-                .cornerRadius(20)
-            
-            Spacer()
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(["全部", "进行中", "已完成", "规划中"], id: \.self) { filter in
+                    NeumorphicPillButton(
+                        title: filter,
+                        color: .neuAccent,
+                        isSelected: selectedFilter == filter
+                    ) {
+                        selectedFilter = filter
+                    }
+                }
+            }
         }
     }
 }
@@ -433,86 +428,71 @@ struct PersonalProjectCardView: View {
         Button(action: {
             showingDetail = true
         }) {
-            VStack(alignment: .leading, spacing: 16) {
-                // Project Header
-                HStack {
-                    Text(project.name)
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                    
-                    Spacer()
-                    
-                    Text("个人")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundColor(.blue)
-                        .cornerRadius(8)
-                }
+            HStack(spacing: 12) {
+                // Left: Color indicator
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(hex: project.color))
+                    .frame(width: 4)
                 
-                // Project Description (if available)
-                if let description = project.description, !description.isEmpty {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
-                
-                // Progress Bar
-                VStack(alignment: .leading, spacing: 4) {
+                // Middle: Project info
+                VStack(alignment: .leading, spacing: 6) {
+                    // Project name and type
                     HStack {
-                        Text("进度")
-                            .font(.caption)
-                            .fontWeight(.medium)
+                        Text(project.name)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.neuTextPrimary)
+                            .lineLimit(1)
                         
                         Spacer()
                         
-                        Text("\(project.completedTasks)/\(project.totalTasks)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        Text("个人")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.neuAccent.opacity(0.15))
+                            .foregroundColor(.neuAccent)
+                            .cornerRadius(6)
                     }
                     
-                    ProgressView(value: project.progressPercentage)
-                        .progressViewStyle(LinearProgressViewStyle(tint: Color(hex: project.color)))
-                }
-                
-                // Due Date and Status
-                HStack {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    // Progress bar
+                    HStack(spacing: 8) {
+                        NeumorphicProgressView(
+                            progress: project.progressPercentage,
+                            color: Color(hex: project.color),
+                            height: 6
+                        )
                         
-                        if let endDate = project.endDate {
-                            Text("截止：\(formatDate(endDate))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        Text("\(Int(project.progressPercentage * 100))%")
+                            .font(.caption2)
+                            .foregroundColor(.neuTextSecondary)
+                            .frame(width: 35, alignment: .trailing)
                     }
                     
-                    Spacer()
-                    
-                    // Status Badge
-                    Text(getStatusText())
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
-                        .background(getStatusColor())
-                        .cornerRadius(12)
+                    // Due date and tasks
+                    HStack(spacing: 8) {
+                        if let endDate = project.endDate {
+                            HStack(spacing: 3) {
+                                Image(systemName: "calendar")
+                                    .font(.caption2)
+                                Text(formatDate(endDate))
+                                    .font(.caption2)
+                            }
+                            .foregroundColor(.neuTextSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Text("\(project.completedTasks)/\(project.totalTasks) 任务")
+                            .font(.caption2)
+                            .foregroundColor(.neuTextSecondary)
+                    }
                 }
             }
-            .padding(16)
-            .background(Color(.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(PlainButtonStyle())
+        .neumorphicCard(cornerRadius: 16, padding: 12)
         .fullScreenCover(isPresented: $showingDetail) {
             ProjectDetailView(project: project)
         }
@@ -548,167 +528,108 @@ struct TeamProjectOverviewCardView: View {
     @State private var showingCreateTask = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Project Header
-            HStack {
-                Text(project.name)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                Text("团队: \(team.name)")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.green.opacity(0.1))
-                    .foregroundColor(.green)
-                    .cornerRadius(8)
-            }
+        HStack(spacing: 12) {
+            // Left: Color indicator
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(hex: project.color))
+                .frame(width: 4)
             
-            // Project Description (if available)
-            if let description = project.description, !description.isEmpty {
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
-            
-            // Progress Bar
-            VStack(alignment: .leading, spacing: 4) {
+            // Middle: Project info
+            VStack(alignment: .leading, spacing: 6) {
+                // Project name and team
                 HStack {
-                    Text("进度")
-                        .font(.caption)
-                        .fontWeight(.medium)
+                    Text(project.name)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.neuTextPrimary)
+                        .lineLimit(1)
                     
                     Spacer()
                     
-                    Text("\(project.completedTasks)/\(project.totalTasks)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text(team.name)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green.opacity(0.15))
+                        .foregroundColor(.green)
+                        .cornerRadius(6)
                 }
                 
-                ProgressView(value: project.progressPercentage)
-                    .progressViewStyle(LinearProgressViewStyle(tint: Color(hex: project.color)))
-            }
-            
-            // Team Members Preview
-            HStack {
-                Text("团队成员")
-                    .font(.caption)
-                    .fontWeight(.medium)
+                // Progress bar
+                HStack(spacing: 8) {
+                    NeumorphicProgressView(
+                        progress: project.progressPercentage,
+                        color: Color(hex: project.color),
+                        height: 6
+                    )
+                    
+                    Text("\(Int(project.progressPercentage * 100))%")
+                        .font(.caption2)
+                        .foregroundColor(.neuTextSecondary)
+                        .frame(width: 35, alignment: .trailing)
+                }
                 
-                Spacer()
-                
-                HStack(spacing: -8) {
-                    ForEach(Array(team.members.prefix(3).enumerated()), id: \.offset) { index, member in
-                        Circle()
-                            .fill(Color(hex: project.color))
-                            .frame(width: 24, height: 24)
-                            .overlay(
-                                Text(String(member.name.prefix(1)).uppercased())
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                            )
-                            .overlay(
-                                Circle()
-                                    .stroke(Color(.systemBackground), lineWidth: 2)
-                            )
+                // Team members and tasks
+                HStack(spacing: 8) {
+                    HStack(spacing: -6) {
+                        ForEach(Array(team.members.prefix(3).enumerated()), id: \.offset) { index, member in
+                            Circle()
+                                .fill(Color(hex: project.color))
+                                .frame(width: 18, height: 18)
+                                .overlay(
+                                    Text(String(member.name.prefix(1)).uppercased())
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundColor(.white)
+                                )
+                        }
+                        
+                        if team.members.count > 3 {
+                            Circle()
+                                .fill(Color.neuAccent.opacity(0.3))
+                                .frame(width: 18, height: 18)
+                                .overlay(
+                                    Text("+\(team.members.count - 3)")
+                                        .font(.system(size: 8, weight: .semibold))
+                                        .foregroundColor(.neuTextPrimary)
+                                )
+                        }
                     }
                     
-                    if team.members.count > 3 {
-                        Circle()
-                            .fill(Color(.systemGray4))
-                            .frame(width: 24, height: 24)
-                            .overlay(
-                                Text("+\(team.members.count - 3)")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                            )
-                    }
+                    Spacer()
+                    
+                    Text("\(project.completedTasks)/\(project.totalTasks) 任务")
+                        .font(.caption2)
+                        .foregroundColor(.neuTextSecondary)
                 }
             }
             
-            // Action Buttons
-            HStack(spacing: 12) {
+            // Right: Action buttons
+            VStack(spacing: 6) {
                 Button(action: {
                     showingCreateTask = true
                 }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.caption)
-                        
-                        Text("Add Task")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .cornerRadius(8)
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.neuAccent)
                 }
                 
                 Button(action: {
                     showingDetail = true
                 }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "list.bullet")
-                            .font(.caption)
-                        
-                        Text("View Tasks")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.green.opacity(0.1))
-                    .foregroundColor(.green)
-                    .cornerRadius(8)
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.green)
                 }
-                
-                Spacer()
-                
-                // Status Badge
-                Text(getStatusText())
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(getStatusColor())
-                    .cornerRadius(12)
             }
         }
-        .padding(16)
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .neumorphicCard(cornerRadius: 16, padding: 12)
         .sheet(isPresented: $showingCreateTask) {
             CreateTeamTaskOverviewView(project: project, team: team)
         }
         .fullScreenCover(isPresented: $showingDetail) {
             ProjectDetailView(project: project)
         }
-    }
-    
-    private func getStatusText() -> String {
-        if project.isOverdue {
-            return "逾期"
-        }
-        return project.statusDisplayName
-    }
-    
-    private func getStatusColor() -> Color {
-        if project.isOverdue {
-            return Color(hex: "EF4444") // Red for overdue
-        }
-        return Color(hex: project.statusColor)
     }
 }
 

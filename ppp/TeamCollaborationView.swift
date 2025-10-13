@@ -82,8 +82,8 @@ struct TeamCollaborationView: View {
                     .font(.caption)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
+                    .background(Color.softTeal.opacity(0.1))
+                    .foregroundColor(.softTeal)
                     .cornerRadius(12)
             }
             
@@ -126,7 +126,7 @@ struct TeamCollaborationView: View {
             VStack(spacing: 12) {
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 32))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.softTeal)
                 
                 Text("Create New Team")
                     .font(.headline)
@@ -141,10 +141,10 @@ struct TeamCollaborationView: View {
             .padding(.vertical, 32)
             .background(
                 RoundedRectangle(cornerRadius: 24)
-                    .stroke(Color.blue.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                    .stroke(Color.softTeal.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
                     .background(
                         RoundedRectangle(cornerRadius: 24)
-                            .fill(Color.blue.opacity(0.05))
+                            .fill(Color.softTeal.opacity(0.05))
                     )
             )
         }
@@ -197,10 +197,10 @@ struct InvitationCardView: View {
             }
         }
         .padding(20)
-        .background(Color.blue.opacity(0.05))
+        .background(Color.softTeal.opacity(0.05))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.blue.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                .stroke(Color.softTeal.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
         )
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
@@ -290,7 +290,7 @@ struct MemberAvatarView: View {
     let member: TeamMember
     let index: Int
     
-    private let colors: [Color] = [.blue, .green, .orange, .red, .purple]
+    private let colors: [Color] = [.softTeal, .green, .orange, .red, .softPink]
     
     var body: some View {
         ZStack {
@@ -377,7 +377,7 @@ struct ActionButton: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(style == .primary ? Color.blue : Color(.systemGray5))
+                    .fill(style == .primary ? Color.softTeal : Color(.systemGray5))
             )
             .foregroundColor(style == .primary ? .white : .primary)
     }
@@ -466,7 +466,7 @@ struct TeamDetailView: View {
             }
         }
         .sheet(isPresented: $showingCreateProject) {
-            TaskInputView(team: team)
+            CreateTeamProjectView(team: team)
         }
     }
     
@@ -495,49 +495,75 @@ struct TeamDetailView: View {
     }
     
     private var teamCalendarView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("团队日历")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+        HStack(spacing: 0) {
+            // Vertical Date Strip (Left Side)
+            TeamCalendarVerticalDateStrip(selectedDate: $selectedCalendarDate)
+                .frame(width: 80)
+                .background(Color.neuBackground)
+            
+            // Tasks Content (Right Side)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Selected date header
+                    HStack {
+                        Text(formatSelectedDate(selectedCalendarDate))
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.neuTextPrimary)
+                        
+                        Spacer()
+                    }
                     .padding(.horizontal, 16)
-                
-                // 团队任务列表
-                VStack(alignment: .leading, spacing: 12) {
-                    let teamTasks = dataManager.getTeamTasks(teamId: team.id)
+                    .padding(.top, 16)
                     
-                    if teamTasks.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "calendar.badge.plus")
-                                .font(.system(size: 40))
-                                .foregroundColor(.secondary)
-                            
-                            Text("暂无团队任务")
-                                .font(.title3)
-                                .foregroundColor(.secondary)
-                            
-                            Text("创建第一个团队任务来开始协作")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
+                    // Display tasks for selected date
+                    VStack(alignment: .leading, spacing: 12) {
+                        let teamTasks = dataManager.getTeamTasks(teamId: team.id)
+                        let filteredTasks = teamTasks.filter { task in
+                            guard let dueDate = task.dueDate else { return false }
+                            return Calendar.current.isDate(dueDate, inSameDayAs: selectedCalendarDate)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray6))
-                        )
-                    } else {
-                        ForEach(teamTasks) { task in
-                            TeamTaskRowView(task: task, team: team)
+                        
+                        if filteredTasks.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "calendar.badge.plus")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.neuTextSecondary)
+                                
+                                Text("该日期暂无团队任务")
+                                    .font(.title3)
+                                    .foregroundColor(.neuTextSecondary)
+                                
+                                Text("选择其他日期或创建新任务")
+                                    .font(.subheadline)
+                                    .foregroundColor(.neuTextTertiary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                            .neumorphicInset(cornerRadius: 16)
+                        } else {
+                            ForEach(filteredTasks) { task in
+                                TeamTaskRowView(task: task, team: team)
+                            }
                         }
                     }
+                    .padding(.horizontal, 16)
                 }
-                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
-            .padding(.vertical, 16)
+            .background(Color.neuBackground)
         }
     }
+    
+    private func formatSelectedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M月d日 EEEE"
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter.string(from: date)
+    }
+    
+    @State private var selectedCalendarDate = Date()
     
     private var teamProjectsView: some View {
         ScrollView {
@@ -554,7 +580,7 @@ struct TeamDetailView: View {
                     }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.softTeal)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -589,7 +615,7 @@ struct TeamDetailView: View {
                                     .fontWeight(.medium)
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 10)
-                                    .background(Color.blue)
+                                    .background(Color.softTeal)
                                     .foregroundColor(.white)
                                     .cornerRadius(8)
                             }
@@ -686,14 +712,14 @@ struct TeamTaskRowView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "person.fill")
                                 .font(.caption2)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.softTeal)
                             Text(assignee.name)
                                 .font(.caption2)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.softTeal)
                         }
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.1))
+                        .background(Color.softTeal.opacity(0.1))
                         .cornerRadius(4)
                         .opacity(task.isCompleted ? 0.7 : 1.0)
                     }
@@ -832,7 +858,7 @@ struct TeamMemberDetailRow: View {
     let member: TeamMember
     let index: Int
     
-    private let colors: [Color] = [.blue, .green, .orange, .red, .purple]
+    private let colors: [Color] = [.softTeal, .green, .orange, .red, .softPink]
     
     var body: some View {
         HStack(spacing: 12) {
@@ -1037,7 +1063,7 @@ struct CreateTeamView: View {
                                 showingMemberSelection = true
                             }
                             .font(.subheadline)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.softTeal)
                         }
                         
                         if selectedMembers.isEmpty {
@@ -1148,7 +1174,7 @@ struct SelectedMemberChip: View {
     let index: Int
     let onRemove: () -> Void
     
-    private let colors: [Color] = [.blue, .green, .orange, .red, .purple]
+    private let colors: [Color] = [.softTeal, .green, .orange, .red, .softPink]
     
     var body: some View {
         HStack(spacing: 6) {
@@ -1257,12 +1283,12 @@ struct MemberSelectionView: View {
                     HStack {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.softTeal)
                         
                         Text("Add New Member")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.softTeal)
                         
                         Spacer()
                     }
@@ -1270,10 +1296,10 @@ struct MemberSelectionView: View {
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.blue.opacity(0.1))
+                            .fill(Color.softTeal.opacity(0.1))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.blue.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4, 2]))
+                                    .stroke(Color.softTeal.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4, 2]))
                             )
                     )
                 }
@@ -1336,9 +1362,9 @@ struct MemberSelectionRow: View {
                 // Avatar
                 Image(systemName: member.avatar ?? "person.circle.fill")
                     .font(.title2)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.softTeal)
                     .frame(width: 40, height: 40)
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color.softTeal.opacity(0.1))
                     .clipShape(Circle())
                 
                 // Member Info
@@ -1366,11 +1392,11 @@ struct MemberSelectionRow: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color.blue.opacity(0.1) : Color(.systemBackground))
+                    .fill(isSelected ? Color.softTeal.opacity(0.1) : Color(.systemBackground))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 1)
+                    .stroke(isSelected ? Color.softTeal : Color.clear, lineWidth: 1)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -1410,11 +1436,11 @@ struct QuickAddMemberView: View {
                                         .font(.title)
                                         .foregroundColor(selectedAvatar == avatar ? .white : .blue)
                                         .frame(width: 50, height: 50)
-                                        .background(selectedAvatar == avatar ? Color.blue : Color.blue.opacity(0.1))
+                                        .background(selectedAvatar == avatar ? Color.softTeal : Color.softTeal.opacity(0.1))
                                         .clipShape(Circle())
                                         .overlay(
                                             Circle()
-                                                .stroke(selectedAvatar == avatar ? Color.blue : Color.clear, lineWidth: 2)
+                                                .stroke(selectedAvatar == avatar ? Color.softTeal : Color.clear, lineWidth: 2)
                                         )
                                 }
                             }
@@ -1546,7 +1572,7 @@ struct TeamProjectCardView: View {
                 HStack(spacing: -8) {
                     ForEach(Array(team.members.prefix(3).enumerated()), id: \.offset) { index, member in
                         Circle()
-                            .fill(Color.blue)
+                            .fill(Color.softTeal)
                             .frame(width: 24, height: 24)
                             .overlay(
                                 Text(String(member.name.prefix(1)).uppercased())
@@ -1611,13 +1637,13 @@ struct CreateTeamProjectView: View {
     
     @State private var projectName = ""
     @State private var projectDescription = ""
-    @State private var selectedColor = "#3B82F6"
+    @State private var selectedColor = "#5DADE2"
     @State private var startDate = Date()
     @State private var endDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
     
     private let colorOptions = [
-        "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
-        "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16"
+        "#5DADE2", "#10B981", "#F59E0B", "#EF4444",
+        "#FFB6B9", "#FFD6A5", "#A8E6CF", "#84CC16"
     ]
     
     var body: some View {
@@ -1626,55 +1652,65 @@ struct CreateTeamProjectView: View {
                 VStack(spacing: 24) {
                     // Project Info
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Project Information")
+                        Text("项目信息")
                             .font(.headline)
                             .fontWeight(.semibold)
+                            .foregroundColor(.neuTextPrimary)
                         
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Project Name")
+                            Text("项目名称")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
+                                .foregroundColor(.neuTextSecondary)
                             
-                            TextField("Enter project name", text: $projectName)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            TextField("输入项目名称", text: $projectName)
+                                .padding(12)
+                                .background(Color.neuBackground)
+                                .cornerRadius(12)
+                                .neumorphicInset(cornerRadius: 12)
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Description")
+                            Text("项目描述")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
+                                .foregroundColor(.neuTextSecondary)
                             
-                            TextField("Enter project description", text: $projectDescription, axis: .vertical)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            TextField("输入项目描述（可选）", text: $projectDescription, axis: .vertical)
+                                .padding(12)
+                                .background(Color.neuBackground)
+                                .cornerRadius(12)
                                 .lineLimit(3...6)
+                                .neumorphicInset(cornerRadius: 12)
                         }
                     }
                     
                     // Color Selection
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Project Color")
+                        Text("项目颜色")
                             .font(.headline)
                             .fontWeight(.semibold)
+                            .foregroundColor(.neuTextPrimary)
                         
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
                             ForEach(colorOptions, id: \.self) { color in
                                 Button(action: {
                                     selectedColor = color
                                 }) {
-                                    RoundedRectangle(cornerRadius: 12)
+                                    Circle()
                                         .fill(Color(hex: color))
                                         .frame(width: 50, height: 50)
                                         .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(selectedColor == color ? Color.primary : Color.clear, lineWidth: 3)
+                                            Circle()
+                                                .stroke(Color.neuBackground, lineWidth: 4)
                                         )
                                         .overlay(
-                                            Image(systemName: "checkmark")
-                                                .font(.headline)
-                                                .fontWeight(.bold)
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.title3)
                                                 .foregroundColor(.white)
                                                 .opacity(selectedColor == color ? 1 : 0)
                                         )
+                                        .shadow(color: selectedColor == color ? Color(hex: color).opacity(0.4) : Color.clear, radius: 8, x: 0, y: 4)
                                 }
                             }
                         }
@@ -1682,21 +1718,25 @@ struct CreateTeamProjectView: View {
                     
                     // Date Selection
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Project Timeline")
+                        Text("项目时间线")
                             .font(.headline)
                             .fontWeight(.semibold)
+                            .foregroundColor(.neuTextPrimary)
                         
                         VStack(spacing: 12) {
-                            DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
-                            DatePicker("End Date", selection: $endDate, displayedComponents: .date)
+                            DatePicker("开始日期", selection: $startDate, displayedComponents: .date)
+                                .foregroundColor(.neuTextPrimary)
+                            DatePicker("结束日期", selection: $endDate, displayedComponents: .date)
+                                .foregroundColor(.neuTextPrimary)
                         }
                     }
                     
                     // Team Info
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Team Assignment")
+                        Text("所属团队")
                             .font(.headline)
                             .fontWeight(.semibold)
+                            .foregroundColor(.neuTextPrimary)
                         
                         HStack {
                             Text(team.icon)
@@ -1706,19 +1746,17 @@ struct CreateTeamProjectView: View {
                                 Text(team.name)
                                     .font(.subheadline)
                                     .fontWeight(.medium)
+                                    .foregroundColor(.neuTextPrimary)
                                 
-                                Text("\(team.members.count) members")
+                                Text("\(team.members.count) 成员")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.neuTextSecondary)
                             }
                             
                             Spacer()
                         }
                         .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(.systemGray6))
-                        )
+                        .neumorphicCard(cornerRadius: 12, padding: 0)
                     }
                     
                     Spacer()
@@ -1726,19 +1764,22 @@ struct CreateTeamProjectView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
-            .navigationTitle("Create Team Project")
+            .background(Color.neuBackground)
+            .navigationTitle("创建团队项目")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button("取消") {
                         dismiss()
                     }
+                    .foregroundColor(.neuTextSecondary)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Create") {
+                    Button("创建") {
                         createTeamProject()
                     }
+                    .foregroundColor(.neuAccent)
                     .disabled(projectName.isEmpty)
                 }
             }
@@ -1940,7 +1981,7 @@ struct CreateTeamTaskView: View {
                                 }) {
                                     VStack(spacing: 4) {
                                         Circle()
-                                            .fill(selectedAssignee == nil ? Color.blue : Color(.systemGray5))
+                                            .fill(selectedAssignee == nil ? Color.softTeal : Color(.systemGray5))
                                             .frame(width: 40, height: 40)
                                             .overlay(
                                                 Image(systemName: "person.slash")
@@ -1961,7 +2002,7 @@ struct CreateTeamTaskView: View {
                                     }) {
                                         VStack(spacing: 4) {
                                             Circle()
-                                                .fill(selectedAssignee == member.id ? Color.blue : Color(.systemGray5))
+                                                .fill(selectedAssignee == member.id ? Color.softTeal : Color(.systemGray5))
                                                 .frame(width: 40, height: 40)
                                                 .overlay(
                                                     Text(String(member.name.prefix(1)).uppercased())
@@ -2061,7 +2102,7 @@ struct CreateTeamTaskView: View {
         case .low: return .green
         case .medium: return .orange
         case .high: return .red
-        case .urgent: return .purple
+        case .urgent: return .softPink
         }
     }
     
@@ -2215,13 +2256,173 @@ struct TeamTaskListView: View {
                     Button("Add Task") {
                         // This could open the create task view
                     }
-                    .foregroundColor(.blue)
+                    .foregroundColor(.softTeal)
                 }
             }
         }
     }
 }
 
+// MARK: - Team Calendar Vertical Date Strip
+struct TeamCalendarVerticalDateStrip: View {
+    @Binding var selectedDate: Date
+    @State private var currentWeekDates: [Date] = []
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Month and Year with navigation
+            VStack(spacing: 8) {
+                NeumorphicIconButton(
+                    icon: "chevron.up",
+                    size: 28,
+                    iconSize: 12,
+                    color: .neuBackground,
+                    iconColor: .neuAccent,
+                    action: {
+                        moveWeek(by: -1)
+                    }
+                )
+                
+                Text(monthString)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.neuTextPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                
+                NeumorphicIconButton(
+                    icon: "chevron.down",
+                    size: 28,
+                    iconSize: 12,
+                    color: .neuBackground,
+                    iconColor: .neuAccent,
+                    action: {
+                        moveWeek(by: 1)
+                    }
+                )
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 8)
+            
+            Divider()
+                .background(Color.neuTextTertiary.opacity(0.3))
+            
+            // Vertical dates strip
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 8) {
+                    ForEach(currentWeekDates, id: \.self) { date in
+                        VerticalDateCell(
+                            date: date,
+                            isSelected: Calendar.current.isDate(date, inSameDayAs: selectedDate),
+                            isToday: Calendar.current.isDateInToday(date)
+                        ) {
+                            selectedDate = date
+                        }
+                    }
+                }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 8)
+            }
+        }
+        .onAppear {
+            generateCurrentWeek()
+        }
+    }
+    
+    private var monthString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M月"
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter.string(from: selectedDate)
+    }
+    
+    private func generateCurrentWeek() {
+        let calendar = Calendar.current
+        let today = selectedDate
+        
+        guard let weekInterval = calendar.dateInterval(of: .weekOfMonth, for: today) else {
+            return
+        }
+        
+        var dates: [Date] = []
+        var currentDate = weekInterval.start
+        
+        for _ in 0..<7 {
+            dates.append(currentDate)
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        }
+        
+        currentWeekDates = dates
+    }
+    
+    private func moveWeek(by weeks: Int) {
+        let calendar = Calendar.current
+        if let newDate = calendar.date(byAdding: .weekOfYear, value: weeks, to: selectedDate) {
+            selectedDate = newDate
+            generateCurrentWeek()
+        }
+    }
+    
+    struct VerticalDateCell: View {
+        let date: Date
+        let isSelected: Bool
+        let isToday: Bool
+        let action: () -> Void
+        
+        private var dayString: String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "E"
+            formatter.locale = Locale(identifier: "zh_CN")
+            return formatter.string(from: date)
+        }
+        
+        private var dateString: String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "d"
+            return formatter.string(from: date)
+        }
+        
+        var body: some View {
+            Button(action: action) {
+                VStack(spacing: 4) {
+                    Text(dateString)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(isSelected ? .white : .neuTextPrimary)
+                    
+                    Text(dayString)
+                        .font(.system(size: 10))
+                        .foregroundColor(isSelected ? .white : .neuTextSecondary)
+                    
+                    if isToday && !isSelected {
+                        Circle()
+                            .fill(Color.neuAccent)
+                            .frame(width: 4, height: 4)
+                    }
+                }
+                .frame(width: 64, height: 60)
+                .background(
+                    ZStack {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.neuAccent, Color.neuAccent.opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: Color.neuAccent.opacity(0.3), radius: 6, x: 0, y: 3)
+                        } else {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.neuBackground)
+                        }
+                    }
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+    }
+}
 
 
 #Preview {

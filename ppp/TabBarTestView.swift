@@ -14,17 +14,9 @@ struct TabBarTestView: View {
     
     var body: some View {
         ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [
-                    Color.blue.opacity(0.2),
-                    Color.purple.opacity(0.1),
-                    Color.pink.opacity(0.05)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // Neumorphic background
+            Color.neuBackground
+                .ignoresSafeArea()
             
             VStack {
                 // Header
@@ -57,13 +49,7 @@ struct TabBarTestView: View {
                 VStack(spacing: 20) {
                     Image(systemName: tabs[selectedTab].selectedIcon)
                         .font(.system(size: 80))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .foregroundColor(.neuAccent)
                         .scaleEffect(1.0)
                         .animation(.spring(response: 0.5, dampingFraction: 0.7), value: selectedTab)
                     
@@ -87,12 +73,12 @@ struct TabBarTestView: View {
             VStack {
                 Spacer()
                 if useAdvancedVersion {
-                    AdvancedLiquidGlassTabBar(
+                    NeumorphicInsetTabBar(
                         selectedTab: $selectedTab,
                         tabs: tabs
                     )
                 } else {
-                    LiquidGlassTabBar(
+                    NeumorphicTabBar(
                         selectedTab: $selectedTab,
                         tabs: tabs
                     )

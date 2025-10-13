@@ -67,7 +67,7 @@ struct ProjectDetailView: View {
                 .padding(.bottom, 100)
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.neuBackground)
         .navigationBarHidden(true)
         .sheet(isPresented: $showingAIAssistant) {
             AIAssistantView(project: project)

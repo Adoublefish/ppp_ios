@@ -15,7 +15,7 @@ struct LiquidGlassConfig {
     
     // Colors
     static let primaryGradient = LinearGradient(
-        colors: [Color.blue, Color.purple],
+        colors: [Color.softTeal, Color.softMint],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )

@@ -13,17 +13,9 @@ struct MainTabView: View {
     
     var body: some View {
         ZStack {
-            // Soft monochromatic background
-            LinearGradient(
-                colors: [
-                    Color.backgroundPrimary.opacity(0.3),
-                    Color.backgroundSecondary,
-                    Color.softMint.opacity(0.1)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // Neumorphic monochromatic background
+            Color.neuBackground
+                .ignoresSafeArea()
             
             // Main content area - single view based on selected tab
             VStack(spacing: 0) {
@@ -60,10 +52,10 @@ struct MainTabView: View {
             
 
             
-            // Liquid Glass Tab Bar - Fixed at bottom
+            // Neumorphic Tab Bar - Fixed at bottom
             VStack {
                 Spacer()
-                LiquidGlassTabBar(
+                NeumorphicTabBar(
                     selectedTab: $selectedTab,
                     tabs: tabs
                 )

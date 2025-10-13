@@ -40,6 +40,10 @@ struct TaskInputView: View {
     @State private var showingCamera = false
     @State private var extractedText = ""
     @State private var isProcessingOCR = false
+    @State private var ocrResult: OCRResult?
+    @State private var showingOCREditor = false
+    @State private var suggestedTitle = ""
+    @State private var suggestedDescription = ""
     @State private var showingAIBreakdown = false
     @State private var showingTeamMemberManagement = false
     @State private var showingCategoryManagement = false
@@ -157,6 +161,21 @@ struct TaskInputView: View {
         .sheet(isPresented: $showingCategoryPicker) {
             categoryPickerSheet
         }
+        .sheet(isPresented: $showingOCREditor) {
+            OCREditorView(
+                ocrResult: ocrResult,
+                suggestedTitle: $suggestedTitle,
+                suggestedDescription: $suggestedDescription,
+                onApply: { title, description in
+                    projectTitle = title
+                    projectDescription = description
+                    showingOCREditor = false
+                },
+                onCancel: {
+                    showingOCREditor = false
+                }
+            )
+        }
         .alert("任务创建成功", isPresented: $showingSuccessAlert) {
             Button("确定") {
                 // Alert will dismiss automatically
@@ -172,7 +191,7 @@ struct TaskInputView: View {
             Button("取消") {
                 dismiss()
             }
-            .foregroundColor(.blue)
+            .foregroundColor(.softTeal)
             
             Spacer()
             
@@ -214,7 +233,7 @@ struct TaskInputView: View {
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(selectedTab == 0 ? Color.blue.opacity(0.1) : Color.clear)
+                        .fill(selectedTab == 0 ? Color.softTeal.opacity(0.1) : Color.clear)
                 )
             }
             
@@ -238,7 +257,7 @@ struct TaskInputView: View {
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(selectedTab == 1 ? Color.blue.opacity(0.1) : Color.clear)
+                        .fill(selectedTab == 1 ? Color.softTeal.opacity(0.1) : Color.clear)
                 )
             }
         }
@@ -290,7 +309,7 @@ struct TaskInputView: View {
                                     .stroke(
                                         projectTitle.isEmpty ? 
                                         Color(.systemGray4) : 
-                                        Color.blue.opacity(0.5),
+                                        Color.softTeal.opacity(0.5),
                                         lineWidth: projectTitle.isEmpty ? 1 : 1.5
                                     )
                             )
@@ -332,7 +351,7 @@ struct TaskInputView: View {
                                 .stroke(
                                     projectDescription.isEmpty ? 
                                     Color(.systemGray4) : 
-                                    Color.blue.opacity(0.5),
+                                    Color.softTeal.opacity(0.5),
                                     lineWidth: projectDescription.isEmpty ? 1 : 1.5
                                 )
                         )
@@ -441,7 +460,7 @@ struct TaskInputView: View {
                         .padding(.vertical, 16)
                         .background(
                             LinearGradient(
-                                colors: [Color.blue, Color.blue.opacity(0.8)],
+                                colors: [Color.softTeal, Color.softTeal.opacity(0.8)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -455,19 +474,19 @@ struct TaskInputView: View {
                         VStack(spacing: 6) {
                             Image(systemName: "photo.on.rectangle.angled")
                                 .font(.title2)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.softTeal)
                             Text("选择图片")
                                 .font(.caption)
                                 .fontWeight(.medium)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.softTeal)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Color.blue.opacity(0.1))
+                        .background(Color.softTeal.opacity(0.1))
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                .stroke(Color.softTeal.opacity(0.3), lineWidth: 1)
                         )
                     }
                 }
@@ -551,6 +570,90 @@ struct TaskInputView: View {
                         }
                         .frame(maxHeight: 150)
                         
+                        // 智能识别结果显示
+                        if let result = ocrResult, !result.extractedInfo.title.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Image(systemName: "sparkles")
+                                        .foregroundColor(.softPink)
+                                    Text("智能识别结果")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                    
+                                    Spacer()
+                                }
+                                
+                                // 建议的标题
+                                if !result.extractedInfo.title.isEmpty {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("标题:")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        
+                                        Text(result.extractedInfo.title)
+                                            .font(.subheadline)
+                                            .padding(8)
+                                            .background(Color.softPink.opacity(0.1))
+                                            .cornerRadius(8)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(Color.softPink.opacity(0.3), lineWidth: 1)
+                                            )
+                                    }
+                                }
+                                
+                                // 建议的描述
+                                if !result.extractedInfo.description.isEmpty {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("描述:")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        
+                                        Text(result.extractedInfo.description)
+                                            .font(.caption)
+                                            .padding(8)
+                                            .background(Color.orange.opacity(0.1))
+                                            .cornerRadius(8)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                                            )
+                                            .lineLimit(3)
+                                    }
+                                }
+                                
+                                // 操作按钮
+                                HStack(spacing: 8) {
+                                    Button("编辑") {
+                                        showingOCREditor = true
+                                    }
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.softPink)
+                                    .cornerRadius(8)
+                                    
+                                    Button("直接应用") {
+                                        projectTitle = result.extractedInfo.title
+                                        projectDescription = result.extractedInfo.description
+                                    }
+                                    .font(.caption)
+                                    .foregroundColor(.softPink)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.softPink.opacity(0.1))
+                                    .cornerRadius(8)
+                                    
+                                    Spacer()
+                                }
+                            }
+                            .padding(12)
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                        }
+                        
                         // Quick action buttons
                         HStack(spacing: 12) {
                             Button(action: {
@@ -559,14 +662,14 @@ struct TaskInputView: View {
                                 HStack(spacing: 4) {
                                     Image(systemName: "arrow.up.doc")
                                         .font(.caption)
-                                    Text("用作标题")
+                                    Text("原文用作标题")
                                         .font(.caption)
                                         .fontWeight(.medium)
                                 }
-                                .foregroundColor(.blue)
+                                .foregroundColor(.softTeal)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(Color.blue.opacity(0.1))
+                                .background(Color.softTeal.opacity(0.1))
                                 .cornerRadius(8)
                             }
                             
@@ -576,7 +679,7 @@ struct TaskInputView: View {
                                 HStack(spacing: 4) {
                                     Image(systemName: "doc.text")
                                         .font(.caption)
-                                    Text("用作描述")
+                                    Text("原文用作描述")
                                         .font(.caption)
                                         .fontWeight(.medium)
                                 }
@@ -642,10 +745,10 @@ struct TaskInputView: View {
                     .padding(16)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.blue.opacity(0.05))
+                            .fill(Color.softTeal.opacity(0.05))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                                    .stroke(Color.softTeal.opacity(0.2), lineWidth: 1)
                             )
                     )
                     
@@ -653,7 +756,7 @@ struct TaskInputView: View {
                     HStack(spacing: 8) {
                         ForEach(0..<3, id: \.self) { index in
                             Circle()
-                                .fill(Color.blue.opacity(0.7))
+                                .fill(Color.softTeal.opacity(0.7))
                                 .frame(width: 8, height: 8)
                                 .scaleEffect(index == 0 ? 1.2 : 0.8)
                                 .animation(
@@ -692,16 +795,14 @@ struct TaskInputView: View {
                         .font(.headline)
                         .fontWeight(.semibold)
                 }
-                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(shouldDisableAIButton ? Color.gray : Color.blue)
-                )
             }
+            .neumorphicButton(
+                color: shouldDisableAIButton ? .neuBackground.opacity(0.5) : .neuAccent,
+                textColor: shouldDisableAIButton ? .neuTextTertiary : .white
+            )
             .disabled(shouldDisableAIButton)
-            .opacity(shouldDisableAIButton ? 0.6 : 1.0)
             
             // Direct Create Button
             Button(action: {
@@ -710,18 +811,14 @@ struct TaskInputView: View {
                 Text("直接创建")
                     .font(.headline)
                     .fontWeight(.medium)
-                    .foregroundColor(shouldDisableCreateButton ? .secondary : .blue)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.systemGray6))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(shouldDisableCreateButton ? Color.clear : Color.blue, lineWidth: 1.5)
-                            )
-                    )
             }
+            .neumorphicButton(
+                color: .neuBackground,
+                textColor: shouldDisableCreateButton ? .neuTextTertiary : .neuAccent,
+                isInset: true
+            )
             .disabled(shouldDisableCreateButton)
         }
     }
@@ -827,7 +924,16 @@ struct TaskInputView: View {
                 if recognizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     extractedText = "未检测到文字内容，请确保图片清晰且包含文字"
                 } else {
-                    extractedText = recognizedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let cleanText = recognizedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    extractedText = cleanText
+                    
+                    // 创建OCR结果并进行智能分析
+                    let result = OCRResult(originalText: cleanText)
+                    ocrResult = result
+                    
+                    // 自动填充建议的标题和描述
+                    suggestedTitle = result.extractedInfo.title
+                    suggestedDescription = result.extractedInfo.description
                 }
                 
                 // Add success animation
@@ -977,7 +1083,7 @@ extension TaskInputView {
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(taskType == type ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                                .fill(taskType == type ? Color.softTeal.opacity(0.1) : Color(.systemGray6))
                         )
                     }
                 }
@@ -1075,7 +1181,7 @@ extension TaskInputView {
                         Text("管理成员")
                             .font(.caption)
                     }
-                    .foregroundColor(.blue)
+                    .foregroundColor(.softTeal)
                 }
             }
             
@@ -1087,7 +1193,7 @@ extension TaskInputView {
                     if let assignee = selectedAssignee {
                         Image(systemName: assignee.avatar ?? "person.circle.fill")
                             .font(.title3)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.softTeal)
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text(assignee.name)
@@ -1165,7 +1271,7 @@ extension TaskInputView {
                         Text("管理分类")
                             .font(.caption)
                     }
-                    .foregroundColor(.blue)
+                    .foregroundColor(.softTeal)
                 }
             }
             
@@ -1350,7 +1456,7 @@ extension TaskInputView {
         case .low: return .green
         case .medium: return .orange
         case .high: return .red
-        case .urgent: return .purple
+        case .urgent: return .softPink
         }
     }
     
@@ -1376,39 +1482,53 @@ extension TaskInputView {
                 }
                 .foregroundColor(.primary)
                 
-                ForEach(dataManager.allProjects) { project in
-                    Button(action: {
-                        selectedProjectId = project.id
-                        showingProjectPicker = false
-                    }) {
-                        HStack(spacing: 12) {
-                            Circle()
-                                .fill(Color(hex: project.color))
-                                .frame(width: 12, height: 12)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(project.name)
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                                
-                                if let description = project.description {
-                                    Text(description)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            if selectedProjectId == project.id {
-                                Image(systemName: "checkmark")
-                                    .font(.subheadline)
-                                    .foregroundColor(.blue)
+                // Show team projects first if creating a team task
+                if let team = team {
+                    let teamProjects = dataManager.getTeamProjects(teamId: team.id)
+                    
+                    if !teamProjects.isEmpty {
+                        Section(header: Text("团队项目")) {
+                            ForEach(teamProjects) { project in
+                                ProjectPickerRow(
+                                    project: project,
+                                    isSelected: selectedProjectId == project.id,
+                                    action: {
+                                        selectedProjectId = project.id
+                                        showingProjectPicker = false
+                                    }
+                                )
                             }
                         }
                     }
-                    .foregroundColor(.primary)
+                    
+                    // Other projects
+                    let otherProjects = dataManager.allProjects.filter { $0.ownerId != team.id }
+                    if !otherProjects.isEmpty {
+                        Section(header: Text("其他项目")) {
+                            ForEach(otherProjects) { project in
+                                ProjectPickerRow(
+                                    project: project,
+                                    isSelected: selectedProjectId == project.id,
+                                    action: {
+                                        selectedProjectId = project.id
+                                        showingProjectPicker = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Personal tasks - show all projects
+                    ForEach(dataManager.allProjects) { project in
+                        ProjectPickerRow(
+                            project: project,
+                            isSelected: selectedProjectId == project.id,
+                            action: {
+                                selectedProjectId = project.id
+                                showingProjectPicker = false
+                            }
+                        )
+                    }
                 }
             }
             .navigationTitle("选择项目")
@@ -1440,7 +1560,7 @@ extension TaskInputView {
                         HStack(spacing: 12) {
                             Image(systemName: user.avatar ?? "person.circle.fill")
                                 .font(.title3)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.softTeal)
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(user.name)
@@ -1465,7 +1585,7 @@ extension TaskInputView {
                             if selectedAssignee?.id == user.id {
                                 Image(systemName: "checkmark")
                                     .font(.subheadline)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                             }
                         }
                     }
@@ -1527,7 +1647,7 @@ extension TaskInputView {
                                 categoryPair.custom?.id == selectedCustomCategory?.id) {
                                 Image(systemName: "checkmark")
                                     .font(.subheadline)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                             }
                         }
                     }
@@ -1542,12 +1662,12 @@ extension TaskInputView {
                     HStack(spacing: 12) {
                         Image(systemName: "plus.circle")
                             .font(.subheadline)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.softTeal)
                             .frame(width: 20, height: 20)
                         
                         Text("添加自定义类别")
                             .font(.body)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.softTeal)
                         
                         Spacer()
                     }
@@ -1563,6 +1683,45 @@ extension TaskInputView {
                 }
             }
         }
+    }
+}
+
+// MARK: - Project Picker Row
+struct ProjectPickerRow: View {
+    let project: Project
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(Color(hex: project.color))
+                    .frame(width: 12, height: 12)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(project.name)
+                        .font(.body)
+                        .foregroundColor(.primary)
+                    
+                    if let description = project.description {
+                        Text(description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.subheadline)
+                        .foregroundColor(.softTeal)
+                }
+            }
+        }
+        .foregroundColor(.primary)
     }
 }
 

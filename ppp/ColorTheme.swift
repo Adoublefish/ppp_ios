@@ -7,28 +7,70 @@
 
 import SwiftUI
 
-// MARK: - Color Theme Extension
+// MARK: - Color Theme Extension with Dark Mode Support
 extension Color {
-    // Custom color palette
-    static let softPink = Color(hex: "#FFB6B9")
-    static let softPeach = Color(hex: "#FAE3D9")
-    static let softMint = Color(hex: "#BBDED6")
-    static let softTeal = Color(hex: "#61C0BF")
+    // Custom color palette (adaptive)
+    static var softPink: Color {
+        Color(light: Color(hex: "#FFB6B9"), dark: Color(hex: "#FFB3BA"))
+    }
     
-    // Semantic colors based on the palette
-    static let primaryAccent = softTeal
-    static let secondaryAccent = softMint
-    static let backgroundPrimary = softPeach
-    static let backgroundSecondary = Color.white
-    static let cardBackground = Color.white
-    static let textPrimary = Color.black.opacity(0.8)
-    static let textSecondary = Color.black.opacity(0.6)
-    static let textTertiary = Color.black.opacity(0.4)
+    static var softPeach: Color {
+        Color(light: Color(hex: "#FAE3D9"), dark: Color(hex: "#4A4A4C"))
+    }
     
-    // Status colors
-    static let successColor = softMint
-    static let warningColor = softPink
-    static let infoColor = softTeal
+    static var softMint: Color {
+        Color(light: Color(hex: "#BBDED6"), dark: Color(hex: "#A8E6CF"))
+    }
+    
+    static var softTeal: Color {
+        Color(light: Color(hex: "#61C0BF"), dark: Color(hex: "#5DD3CE"))
+    }
+    
+    // Semantic colors based on the palette (adaptive)
+    static var primaryAccent: Color {
+        softTeal
+    }
+    
+    static var secondaryAccent: Color {
+        softMint
+    }
+    
+    static var backgroundPrimary: Color {
+        Color(light: Color(hex: "#FAE3D9"), dark: Color(hex: "#1C1C1E"))
+    }
+    
+    static var backgroundSecondary: Color {
+        Color(light: Color.white, dark: Color(hex: "#2C2C2E"))
+    }
+    
+    static var cardBackground: Color {
+        Color(light: Color.white, dark: Color(hex: "#3A3A3C"))
+    }
+    
+    static var textPrimary: Color {
+        Color(light: Color.black.opacity(0.8), dark: Color.white.opacity(0.9))
+    }
+    
+    static var textSecondary: Color {
+        Color(light: Color.black.opacity(0.6), dark: Color.white.opacity(0.6))
+    }
+    
+    static var textTertiary: Color {
+        Color(light: Color.black.opacity(0.4), dark: Color.white.opacity(0.4))
+    }
+    
+    // Status colors (adaptive)
+    static var successColor: Color {
+        Color(light: Color(hex: "#BBDED6"), dark: Color(hex: "#98D8AA"))
+    }
+    
+    static var warningColor: Color {
+        Color(light: Color(hex: "#FFB6B9"), dark: Color(hex: "#FFB3BA"))
+    }
+    
+    static var infoColor: Color {
+        Color(light: Color(hex: "#61C0BF"), dark: Color(hex: "#5DD3CE"))
+    }
     
     // Initialize color from hex string
     init(hex: String) {
@@ -54,6 +96,18 @@ extension Color {
             blue:  Double(b) / 255,
             opacity: Double(a) / 255
         )
+    }
+    
+    // Helper initializer for light/dark mode colors
+    init(light: Color, dark: Color) {
+        self.init(UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor(dark)
+            default:
+                return UIColor(light)
+            }
+        })
     }
 }
 

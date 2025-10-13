@@ -181,12 +181,12 @@ enum TaskCategory: String, CaseIterable, Codable {
     
     var color: Color {
         switch self {
-        case .meeting: return .blue
+        case .meeting: return .softTeal
         case .review: return .green
         case .development: return .orange
-        case .design: return .purple
+        case .design: return .softPink
         case .communication: return .cyan
-        case .presentation: return .indigo
+        case .presentation: return .softMint
         case .milestone: return .red
         case .planning: return .mint
         case .testing: return .yellow

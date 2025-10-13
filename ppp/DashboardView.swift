@@ -141,11 +141,7 @@ extension DashboardView {
                     showingDatePicker = true
                 }
                 .font(.subheadline)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(12)
+                .neumorphicButton(color: .neuAccent, textColor: .white)
             }
             
             // Daily time stats
@@ -165,7 +161,7 @@ extension DashboardView {
                 Text(dailyStats.formattedTotalTime)
                     .font(.title3)
                     .fontWeight(.semibold)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.softTeal)
                 
                 Text("今日时长")
                     .font(.caption2)
@@ -173,7 +169,7 @@ extension DashboardView {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(Color.blue.opacity(0.1))
+            .background(Color.softTeal.opacity(0.1))
             .cornerRadius(8)
             
             // Completed tasks count
@@ -213,7 +209,7 @@ extension DashboardView {
                 VStack(spacing: 4) {
                     Image(systemName: "chart.bar")
                         .font(.title3)
-                        .foregroundColor(.purple)
+                        .foregroundColor(.softPink)
                     
                     Text("详细统计")
                         .font(.caption2)
@@ -221,7 +217,7 @@ extension DashboardView {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(Color.purple.opacity(0.1))
+                .background(Color.softPink.opacity(0.1))
                 .cornerRadius(8)
             }
         }
@@ -250,11 +246,7 @@ extension DashboardView {
                         showingDatePicker = false
                     }
                     .font(.subheadline)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color(.systemGray5))
-                    .foregroundColor(.primary)
-                    .cornerRadius(12)
+                    .neumorphicButton(color: .neuBackground, textColor: .neuTextPrimary)
                     
                     Button("确定") {
                         showingDatePicker = false
@@ -262,11 +254,7 @@ extension DashboardView {
                     }
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
+                    .neumorphicButton(color: .neuAccent, textColor: .white)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 30)
@@ -329,7 +317,7 @@ extension DashboardView {
             // Timeline dot and line
             VStack(spacing: 0) {
                 Circle()
-                    .fill(isCurrentHour(hour) ? Color.blue : Color(.systemGray4))
+                    .fill(isCurrentHour(hour) ? Color.softTeal : Color(.systemGray4))
                     .frame(width: isCurrentHour(hour) ? 8 : 6, height: isCurrentHour(hour) ? 8 : 6)
                 
                 if hour < 18 {
@@ -661,14 +649,14 @@ extension DashboardView {
                             HStack(spacing: 4) {
                                 Image(systemName: "person.2.fill")
                                     .font(.caption2)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                                 Text(team.name)
                                     .font(.caption2)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.1))
+                            .background(Color.softTeal.opacity(0.1))
                             .cornerRadius(4)
                         }
                         
@@ -868,13 +856,13 @@ extension DashboardView {
     
     private func categoryColor(for category: TaskCategory) -> Color {
         switch category {
-        case .meeting: return .blue
+        case .meeting: return .softTeal
         case .review: return .green
-        case .development: return .purple
+        case .development: return .softPink
         case .design: return .pink
         case .communication: return .orange
         case .presentation: return .red
-        case .milestone: return .indigo
+        case .milestone: return .softMint
         case .planning: return .teal
         case .testing: return .cyan
         case .documentation: return .brown

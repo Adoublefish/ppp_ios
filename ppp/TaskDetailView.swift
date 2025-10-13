@@ -43,6 +43,10 @@ struct TaskDetailView: View {
     @State private var extractedText = ""
     @State private var isProcessingOCR = false
     @State private var showingPhotoOptions = false
+    @State private var ocrResult: OCRResult?
+    @State private var showingOCREditor = false
+    @State private var suggestedTitle = ""
+    @State private var suggestedDescription = ""
     
     // Computed properties
     private var currentTask: Task {
@@ -57,29 +61,33 @@ struct TaskDetailView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
-                    // Header with completion toggle
-                    headerSection
+                VStack(spacing: 0) {
+                    // Modern header section inspired by reference image
+                    modernHeaderSection
                     
-                    if isEditing {
-                        // Editing interface with consistent layout
-                        editingInterfaceSection
-                    } else {
-                        // Task Details (view mode)
-                        taskDetailsSection
-                        
-                        // Project Association
-                        projectSection
-                        
-                        // Metadata
-                        metadataSection
+                    // Content sections
+                    VStack(spacing: 16) {
+                        if isEditing {
+                            // Editing interface with consistent layout
+                            editingInterfaceSection
+                        } else {
+                            // Task Details (view mode)
+                            taskDetailsSection
+                            
+                            // Project Association
+                            projectSection
+                            
+                            // Metadata
+                            metadataSection
+                        }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .padding(.bottom, 16)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("任务详情")
+            .background(Color(.systemBackground))
+            .navigationTitle("Task Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -90,6 +98,7 @@ struct TaskDetailView: View {
                             dismiss()
                         }
                     }
+                    .foregroundColor(.neuTextPrimary)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -101,6 +110,7 @@ struct TaskDetailView: View {
                         }
                     }
                     .fontWeight(.medium)
+                    .foregroundColor(.neuAccent)
                 }
             }
         }
@@ -142,6 +152,21 @@ struct TaskDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingOCREditor) {
+            OCREditorView(
+                ocrResult: ocrResult,
+                suggestedTitle: $suggestedTitle,
+                suggestedDescription: $suggestedDescription,
+                onApply: { title, description in
+                    editedTitle = title
+                    editedDescription = description
+                    showingOCREditor = false
+                },
+                onCancel: {
+                    showingOCREditor = false
+                }
+            )
+        }
         .actionSheet(isPresented: $showingPhotoOptions) {
             ActionSheet(
                 title: Text("选择图片来源"),
@@ -154,7 +179,97 @@ struct TaskDetailView: View {
         }
     }
     
-    // MARK: - Header Section
+    // MARK: - Modern Header Section (inspired by reference image)
+    private var modernHeaderSection: some View {
+        VStack(spacing: 0) {
+            // Priority badge at the top
+            HStack {
+                priorityBadge(currentTask.priority)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            
+            // Task title
+            HStack {
+                Text(currentTask.title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            
+            // Author and due date row
+            HStack(spacing: 16) {
+                // Author section
+                HStack(spacing: 8) {
+                    Image(systemName: "person.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(.softTeal)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Author")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(getAssigneeName(currentTask.assigneeId ?? UUID()))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                    }
+                }
+                
+                Spacer()
+                
+                // Due date section
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar")
+                        .font(.title3)
+                        .foregroundColor(.softTeal)
+                    
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("Due")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(currentTask.dueDate.map(formatDueDateShort) ?? "No deadline")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(currentTask.dueDate.map(getDueDateColor) ?? .secondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 20)
+            
+            // Completion toggle
+            HStack {
+                Button(action: {
+                    toggleCompletion()
+                }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: currentTask.isCompleted ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .foregroundColor(currentTask.isCompleted ? .green : .secondary)
+                        
+                        Text(currentTask.isCompleted ? "Completed" : "Mark as Complete")
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .foregroundColor(currentTask.isCompleted ? .green : .primary)
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .background(Color(.systemBackground))
+    }
+    
+    // MARK: - Original Header Section (kept for compatibility)
     private var headerSection: some View {
         VStack(spacing: 16) {
             // Completion Status
@@ -248,7 +363,7 @@ struct TaskDetailView: View {
                                         .stroke(
                                             editedTitle.isEmpty ? 
                                             Color(.systemGray4) : 
-                                            Color.blue.opacity(0.5),
+                                            Color.softTeal.opacity(0.5),
                                             lineWidth: editedTitle.isEmpty ? 1 : 1.5
                                         )
                                 )
@@ -296,7 +411,7 @@ struct TaskDetailView: View {
                                     .stroke(
                                         editedDescription.isEmpty ? 
                                         Color(.systemGray4) : 
-                                        Color.blue.opacity(0.5),
+                                        Color.softTeal.opacity(0.5),
                                         lineWidth: editedDescription.isEmpty ? 1 : 1.5
                                     )
                             )
@@ -355,7 +470,7 @@ struct TaskDetailView: View {
                             
                             Image(systemName: "calendar")
                                 .font(.subheadline)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.softTeal)
                         }
                         .padding(12)
                         .background(Color(.systemGray6))
@@ -425,7 +540,7 @@ struct TaskDetailView: View {
                                 
                                 Image(systemName: "calendar")
                                     .font(.subheadline)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                             }
                             .padding(12)
                             .background(Color(.systemGray6))
@@ -463,7 +578,7 @@ struct TaskDetailView: View {
                                 
                                 Image(systemName: "calendar")
                                     .font(.subheadline)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                             }
                             .padding(12)
                             .background(Color(.systemGray6))
@@ -638,7 +753,7 @@ struct TaskDetailView: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "clock")
                                         .font(.subheadline)
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(.softTeal)
                                     
                                     Text("会议时长: \(duration)")
                                         .font(.body)
@@ -799,7 +914,7 @@ struct TaskDetailView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
                                 .font(.caption)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.softTeal)
                             
                             Text("\(formatEstimatedTime(estimatedHours)) 小时")
                                 .font(.subheadline)
@@ -898,7 +1013,7 @@ struct TaskDetailView: View {
                                     .stroke(
                                         editedTitle.isEmpty ? 
                                         Color(.systemGray4) : 
-                                        Color.blue.opacity(0.5),
+                                        Color.softTeal.opacity(0.5),
                                         lineWidth: editedTitle.isEmpty ? 1 : 1.5
                                     )
                             )
@@ -939,7 +1054,7 @@ struct TaskDetailView: View {
                                 .stroke(
                                     editedDescription.isEmpty ? 
                                     Color(.systemGray4) : 
-                                    Color.blue.opacity(0.5),
+                                    Color.softTeal.opacity(0.5),
                                     lineWidth: editedDescription.isEmpty ? 1 : 1.5
                                 )
                         )
@@ -1207,7 +1322,7 @@ struct TaskDetailView: View {
                        let assignee = dataManager.getAllUsers().first(where: { $0.id == assigneeId }) {
                         Image(systemName: assignee.avatar ?? "person.circle.fill")
                             .font(.title3)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.softTeal)
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text(assignee.name)
@@ -1351,9 +1466,20 @@ struct TaskDetailView: View {
     private var actionButtonsSection: some View {
         VStack(spacing: 16) {
             // Enhanced editing features
-            VStack(spacing: 12) {
-                // Photo and OCR Section
-                VStack(alignment: .leading, spacing: 12) {
+            photoOCRSection
+            
+            // Time Estimation Section
+            timeEstimationSection
+            
+            // Delete button
+            deleteButtonSection
+        }
+        .padding(.top, 20)
+    }
+    
+    // MARK: - Photo OCR Section
+    private var photoOCRSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
                     Text("图片和OCR识别")
                         .font(.headline)
                         .fontWeight(.semibold)
@@ -1379,12 +1505,9 @@ struct TaskDetailView: View {
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                         }
-                        .foregroundColor(.blue)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(8)
                     }
+                    .neumorphicButton(color: .neuBackground, textColor: .neuAccent)
                     
                     if isProcessingOCR {
                         HStack(spacing: 8) {
@@ -1398,11 +1521,12 @@ struct TaskDetailView: View {
                     }
                     
                     if !extractedText.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 12) {
                             Text("识别结果:")
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                             
+                            // 原始识别文本
                             Text(extractedText)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -1410,15 +1534,98 @@ struct TaskDetailView: View {
                                 .background(Color(.systemGray6))
                                 .cornerRadius(6)
                             
-                            Button("将识别内容添加到描述") {
-                                if !editedDescription.isEmpty {
-                                    editedDescription += "\n\n" + extractedText
-                                } else {
-                                    editedDescription = extractedText
+                            // 智能识别结果显示
+                            if let result = ocrResult, !result.extractedInfo.title.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Image(systemName: "sparkles")
+                                            .foregroundColor(.softPink)
+                                        Text("智能识别结果")
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                        
+                                        Spacer()
+                                    }
+                                    
+                                    // 建议的标题
+                                    if !result.extractedInfo.title.isEmpty {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("标题:")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            
+                                            Text(result.extractedInfo.title)
+                                                .font(.caption)
+                                                .padding(6)
+                                                .background(Color.softPink.opacity(0.1))
+                                                .cornerRadius(4)
+                                        }
+                                    }
+                                    
+                                    // 建议的描述
+                                    if !result.extractedInfo.description.isEmpty {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("描述:")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            
+                                            Text(result.extractedInfo.description)
+                                                .font(.caption2)
+                                                .padding(6)
+                                                .background(Color.orange.opacity(0.1))
+                                                .cornerRadius(4)
+                                                .lineLimit(2)
+                                        }
+                                    }
                                 }
+                                .padding(8)
+                                .background(Color(.systemBackground))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.softPink.opacity(0.3), lineWidth: 1)
+                                )
                             }
-                            .font(.caption)
-                            .foregroundColor(.blue)
+                            
+                            // 操作按钮
+                            HStack(spacing: 8) {
+                                if let result = ocrResult, !result.extractedInfo.title.isEmpty {
+                                    Button("编辑") {
+                                        showingOCREditor = true
+                                    }
+                                    .font(.caption)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .neumorphicButton(color: .neuPastelPink, textColor: .white)
+                                    
+                                    Button("应用") {
+                                        if !result.extractedInfo.title.isEmpty {
+                                            editedTitle = result.extractedInfo.title
+                                        }
+                                        if !result.extractedInfo.description.isEmpty {
+                                            editedDescription = result.extractedInfo.description
+                                        }
+                                    }
+                                    .font(.caption)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .neumorphicButton(color: .neuBackground, textColor: .neuPastelPink)
+                                }
+                                
+                                Button("原文加入描述") {
+                                    if !editedDescription.isEmpty {
+                                        editedDescription += "\n\n" + extractedText
+                                    } else {
+                                        editedDescription = extractedText
+                                    }
+                                }
+                                .font(.caption)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .neumorphicButton(color: .neuBackground, textColor: .neuAccent)
+                                
+                                Spacer()
+                            }
                         }
                     }
                 }
@@ -1426,9 +1633,11 @@ struct TaskDetailView: View {
                 .background(Color(.systemBackground))
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                
-                // Time Estimation Section
-                VStack(alignment: .leading, spacing: 12) {
+    }
+    
+    // MARK: - Time Estimation Section
+    private var timeEstimationSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
                     Text("预估工时")
                         .font(.headline)
                         .fontWeight(.semibold)
@@ -1450,15 +1659,13 @@ struct TaskDetailView: View {
                     // Quick time buttons
                     HStack(spacing: 8) {
                         ForEach([0.5, 1.0, 2.0, 4.0, 8.0], id: \.self) { hours in
-                            Button("\(hours, specifier: "%.1f")h") {
+                            NeumorphicPillButton(
+                                title: String(format: "%.1fh", hours),
+                                color: .neuAccent,
+                                isSelected: editedEstimatedHours == hours
+                            ) {
                                 editedEstimatedHours = hours
                             }
-                            .font(.caption)
-                            .foregroundColor(editedEstimatedHours == hours ? .white : .blue)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(editedEstimatedHours == hours ? Color.blue : Color.blue.opacity(0.1))
-                            .cornerRadius(6)
                         }
                     }
                 }
@@ -1466,21 +1673,18 @@ struct TaskDetailView: View {
                 .background(Color(.systemBackground))
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-            }
-            
-            // Delete button
-            Button("删除任务") {
+    }
+    
+    // MARK: - Delete Button Section
+    private var deleteButtonSection: some View {
+        Button("删除任务") {
                 deleteTask()
             }
             .font(.headline)
             .fontWeight(.medium)
-            .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(Color.red)
-            .cornerRadius(12)
-        }
-        .padding(.top, 20)
+            .neumorphicButton(color: .red.opacity(0.15), textColor: .red)
     }
     
     // MARK: - Supporting Views
@@ -1604,7 +1808,7 @@ struct TaskDetailView: View {
                             if selectedProjectId == project.id {
                                 Image(systemName: "checkmark")
                                     .font(.subheadline)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                             }
                         }
                     }
@@ -1640,7 +1844,7 @@ struct TaskDetailView: View {
                         HStack(spacing: 12) {
                             Image(systemName: user.avatar ?? "person.circle.fill")
                                 .font(.title3)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.softTeal)
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(user.name)
@@ -1665,7 +1869,7 @@ struct TaskDetailView: View {
                             if selectedAssigneeId == user.id {
                                 Image(systemName: "checkmark")
                                     .font(.subheadline)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                             }
                         }
                     }
@@ -1713,7 +1917,7 @@ struct TaskDetailView: View {
                                 // 默认类别
                                 Image(systemName: "folder")
                                     .font(.subheadline)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                                     .frame(width: 20, height: 20)
                                 
                                 Text(categoryPair.category.displayName)
@@ -1727,7 +1931,7 @@ struct TaskDetailView: View {
                                 categoryPair.custom?.id == selectedCustomCategoryId) {
                                 Image(systemName: "checkmark")
                                     .font(.subheadline)
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(.softTeal)
                             }
                         }
                     }
@@ -1855,7 +2059,16 @@ struct TaskDetailView: View {
                 if recognizedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     extractedText = "未检测到文字内容，请确保图片清晰且包含文字"
                 } else {
-                    extractedText = recognizedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let cleanText = recognizedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    extractedText = cleanText
+                    
+                    // 创建OCR结果并进行智能分析
+                    let result = OCRResult(originalText: cleanText)
+                    ocrResult = result
+                    
+                    // 自动填充建议的标题和描述
+                    suggestedTitle = result.extractedInfo.title
+                    suggestedDescription = result.extractedInfo.description
                 }
                 
                 // Add success animation
@@ -1940,6 +2153,13 @@ struct TaskDetailView: View {
         return formatter.string(from: date)
     }
     
+    private func formatDueDateShort(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMM yyyy"
+        formatter.locale = Locale(identifier: "en_US")
+        return formatter.string(from: date)
+    }
+    
     private func formatCompletionTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -1962,7 +2182,7 @@ struct TaskDetailView: View {
         case .low: return .green
         case .medium: return .orange
         case .high: return .red
-        case .urgent: return .purple
+        case .urgent: return .softPink
         }
     }
     
