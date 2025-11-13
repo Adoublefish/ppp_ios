@@ -192,6 +192,63 @@ struct NeumorphicInset: ViewModifier {
     }
 }
 
+// MARK: - Glassmorphism Card Modifier
+struct GlassmorphismCard: ViewModifier {
+    var cornerRadius: CGFloat = 24
+    var padding: CGFloat = 16
+    
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(.ultraThinMaterial)
+                    .background(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(Color.white.opacity(0.9))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.6),
+                                        Color.white.opacity(0.2),
+                                        Color.clear,
+                                        Color.white.opacity(0.1)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
+                    .shadow(color: Color.black.opacity(0.08), radius: 20, x: 0, y: 10)
+                    .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 3)
+            )
+    }
+}
+
+// MARK: - Glassmorphism Button Modifier  
+struct GlassmorphismButton: ViewModifier {
+    var cornerRadius: CGFloat = 20
+    var isSelected: Bool = false
+    
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(isSelected ? Color.softTeal : Color.white.opacity(0.8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                    )
+                    .shadow(color: isSelected ? Color.softTeal.opacity(0.3) : Color.black.opacity(0.05), 
+                           radius: isSelected ? 8 : 4, x: 0, y: isSelected ? 4 : 2)
+            )
+    }
+}
+
 // MARK: - Neumorphic Emboss Modifier
 struct NeumorphicEmboss: ViewModifier {
     var cornerRadius: CGFloat = 16
@@ -389,6 +446,14 @@ extension View {
     
     func neumorphicEmboss(cornerRadius: CGFloat = 16, isPressed: Bool = false) -> some View {
         self.modifier(NeumorphicEmboss(cornerRadius: cornerRadius, isPressed: isPressed))
+    }
+    
+    func glassmorphismCard(cornerRadius: CGFloat = 24, padding: CGFloat = 16) -> some View {
+        self.modifier(GlassmorphismCard(cornerRadius: cornerRadius, padding: padding))
+    }
+    
+    func glassmorphismButton(cornerRadius: CGFloat = 20, isSelected: Bool = false) -> some View {
+        self.modifier(GlassmorphismButton(cornerRadius: cornerRadius, isSelected: isSelected))
     }
 }
 

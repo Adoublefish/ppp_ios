@@ -33,7 +33,7 @@ struct TaskTimeInputSheet: View {
                         .fontWeight(.semibold)
                         .multilineTextAlignment(.center)
                     
-                    if let estimatedHours = currentTask?.estimatedHours {
+                    if currentTask?.estimatedHours != nil {
                         Text("预估时间: \(currentTask?.formattedEstimatedTime ?? "N/A")")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
@@ -87,93 +87,10 @@ struct TaskTimeInputSheet: View {
                     }
                     .padding(.horizontal, 20)
                     
-                    // Quick time buttons
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible()),
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: 12) {
-                        ForEach([0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0], id: \.self) { hours in
-                            Button(action: {
-                                actualHours = hours
-                            }) {
-                                VStack(spacing: 6) {
-                                    Text(formatTime(hours))
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                    
-                                    Text(getTimeLabel(hours))
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(
-                                    actualHours == hours ? 
-                                    LinearGradient(
-                                        colors: [Color.blue, Color.purple.opacity(0.8)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ) : 
-                                    LinearGradient(
-                                        colors: [Color(.systemGray6)],
-                                        startPoint: .center,
-                                        endPoint: .center
-                                    )
-                                )
-                                .foregroundColor(actualHours == hours ? .white : .primary)
-                                .cornerRadius(16)
-                                .shadow(
-                                    color: actualHours == hours ? Color.blue.opacity(0.3) : Color.clear,
-                                    radius: actualHours == hours ? 8 : 0,
-                                    x: 0,
-                                    y: 4
-                                )
-                            }
-                            .scaleEffect(actualHours == hours ? 1.05 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: actualHours)
-                        }
-                    }
-                    .padding(.horizontal, 20)
+
                 }
                 
-                // Efficiency indicator
-                if let estimatedHours = currentTask?.estimatedHours, estimatedHours > 0 {
-                    VStack(spacing: 8) {
-                        Text("效率指标")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        
-                        let efficiency = actualHours / estimatedHours
-                        HStack(spacing: 12) {
-                            Image(systemName: efficiency <= 1.0 ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                .font(.title2)
-                                .foregroundColor(efficiency <= 1.0 ? .green : .orange)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(String(format: "%.0f%%", efficiency * 100))
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(efficiency <= 1.0 ? .green : .orange)
-                                
-                                Text(efficiency <= 1.0 ? "按时完成" : "超出预期")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(
-                            (efficiency <= 1.0 ? Color.green : Color.orange).opacity(0.1)
-                        )
-                        .cornerRadius(12)
-                    }
-                    .padding(.horizontal, 20)
-                }
+
                 
                 Spacer()
                 

@@ -20,44 +20,59 @@ struct TeamCollaborationView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Custom Header - 优化顶部距离
-            HStack {
-                Text("团队协作")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
+            // Header
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("团队协作")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text("管理并协同你的团队")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
                 
                 Spacer()
+                
+                Button {
+                    showingCreateTeam = true
+                } label: {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue, Color.blue.opacity(0.85)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 42, height: 42)
+                        .shadow(color: Color.blue.opacity(0.25), radius: 6, x: 0, y: 3)
+                        .overlay(
+                            Image(systemName: "plus")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.white)
+                        )
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
-            .padding(.top, 8) // 大幅减少顶部距离
-            .padding(.bottom, 4) // 减少底部距离
+            .padding(.top, 18)
+            .padding(.bottom, 16)
             .background(Color(.systemBackground))
             
             // Content
             ScrollView {
-                VStack(spacing: 24) {
-                    // Invitations Section
+                VStack(alignment: .leading, spacing: 28) {
+                    myTeamsSection
+                    
                     if !dataManager.teamInvitations.isEmpty {
                         invitationsSection
                     }
-                    
-                    // My Teams Section
-                    myTeamsSection
-                    
-                    // Create Team Section
-                    createTeamSection
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 120) // Extra space for tab bar
+                .padding(.horizontal, 20)
+                .padding(.bottom, 120)
             }
-            .background(
-                LinearGradient(
-                    colors: [Color(.systemGroupedBackground), Color(.systemBackground)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+            .background(Color(.systemBackground))
         }
         .background(Color(.systemBackground))
         .onAppear {
@@ -72,19 +87,17 @@ struct TeamCollaborationView: View {
     private var invitationsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Label("Invitations", systemImage: "envelope")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                Label("待处理邀请", systemImage: "envelope")
+                    .font(.system(size: 18, weight: .semibold))
                 
                 Spacer()
                 
-                Text("\(dataManager.teamInvitations.count) pending")
-                    .font(.caption)
-                    .padding(.horizontal, 12)
+                Text("\(dataManager.teamInvitations.count) 个")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(Color.softTeal.opacity(0.1))
-                    .foregroundColor(.softTeal)
-                    .cornerRadius(12)
+                    .background(Capsule().fill(Color.blue.opacity(0.12)))
             }
             
             ForEach(dataManager.teamInvitations) { invitation in
@@ -96,24 +109,26 @@ struct TeamCollaborationView: View {
     // MARK: - My Teams Section
     private var myTeamsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Label("My Teams", systemImage: "person.3.fill")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                Text("\(dataManager.teams.count) teams")
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(Color.green.opacity(0.1))
-                    .foregroundColor(.green)
-                    .cornerRadius(12)
-            }
-            
-            ForEach(dataManager.teams) { team in
-                TeamCardView(team: team)
+            if dataManager.teams.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "person.3.sequence")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary)
+                    Text("暂无团队")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+                    Text("创建或加入团队以便协作。")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 60)
+            } else {
+                VStack(spacing: 18) {
+                    ForEach(dataManager.teams) { team in
+                        TeamCardView(team: team)
+                    }
+                }
             }
         }
     }
@@ -158,19 +173,32 @@ struct InvitationCardView: View {
     @ObservedObject private var dataManager = TaskDataManager.shared
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 16) {
+                // Invitation Icon
+                Image(systemName: "envelope.badge")
+                    .font(.title2)
+                    .foregroundColor(.orange)
+                    .frame(width: 48, height: 48)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(16)
+                
                 VStack(alignment: .leading, spacing: 4) {
                     Text(invitation.teamName)
-                        .font(.headline)
-                        .fontWeight(.semibold)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
                     
-                    Text("Invited by \(invitation.inviterName) • \(timeAgoString)")
-                        .font(.caption)
+                    Text("来自 \(invitation.inviterName) 的邀请")
+                        .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
                 
                 Spacer()
+                
+                Text(timeAgoString)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             
             Text(invitation.teamDescription)
@@ -179,14 +207,14 @@ struct InvitationCardView: View {
                 .lineLimit(3)
             
             HStack(spacing: 12) {
-                Button("Accept") {
+                Button("接受邀请") {
                     withAnimation(.spring()) {
                         dataManager.acceptInvitation(invitation.id)
                     }
                 }
                 .buttonStyle(AcceptButtonStyle())
                 
-                Button("Decline") {
+                Button("拒绝") {
                     withAnimation(.spring()) {
                         dataManager.declineInvitation(invitation.id)
                     }
@@ -196,13 +224,16 @@ struct InvitationCardView: View {
                 Spacer()
             }
         }
-        .padding(20)
-        .background(Color.softTeal.opacity(0.05))
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.orange.opacity(0.1), radius: 8, x: 0, y: 4)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.softTeal.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                .stroke(Color.orange.opacity(0.2), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
     
     private var timeAgoString: String {
@@ -218,67 +249,62 @@ struct TeamCardView: View {
     @State private var showingTeamDetail = false
     
     var body: some View {
-        Button(action: {
+        Button {
             showingTeamDetail = true
-        }) {
-            VStack(alignment: .leading, spacing: 16) {
-                // Team Header - Title and Members only
-                HStack {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(team.icon)
-                                .font(.title2)
-                            
-                            Text(team.name)
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.primary)
-                        }
-                    }
-                    
-                    Spacer()
+        } label: {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color(hex: team.color).opacity(0.15))
+                        .frame(width: 60, height: 60)
+                    Image(systemName: team.icon)
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundColor(Color(hex: team.color))
                 }
                 
-                // Team Members
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Members")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
-                        
-                        Spacer()
-                        
-                        Text("\(team.members.count) members")
-                            .font(.caption)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(team.name)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    
+                    Text("\(team.members.count) 成员")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                HStack(spacing: 18) {
+                    VStack(spacing: 4) {
+                        Text("\(team.activeTasks)")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.blue)
+                        Text("活跃任务")
+                            .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
                     }
                     
-                    HStack(spacing: 8) {
-                        ForEach(Array(team.members.prefix(5).enumerated()), id: \.offset) { index, member in
-                            MemberAvatarView(member: member, index: index)
-                        }
-                        
-                        if team.members.count > 5 {
-                            Text("+\(team.members.count - 5)")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-                                .frame(width: 32, height: 32)
-                                .background(Color.gray.opacity(0.2))
-                                .clipShape(Circle())
-                        }
+                    VStack(spacing: 4) {
+                        Text("\(team.completedTasks)")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.primary)
+                        Text("已完成")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
                     }
                 }
             }
-            .padding(20)
+            .padding(.vertical, 18)
+            .padding(.horizontal, 20)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(Color(.systemBackground))
-                    .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
             )
+            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
         .sheet(isPresented: $showingTeamDetail) {
             TeamDetailView(team: team)
         }
@@ -388,12 +414,13 @@ struct AcceptButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline)
-            .fontWeight(.medium)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(Color.green)
+                    .shadow(color: Color.green.opacity(0.3), radius: 4, x: 0, y: 2)
             )
             .foregroundColor(.white)
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
@@ -405,14 +432,18 @@ struct DeclineButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline)
-            .fontWeight(.medium)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.red)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.red, lineWidth: 1.5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.systemBackground))
+                    )
             )
-            .foregroundColor(.white)
+            .foregroundColor(.red)
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
@@ -495,65 +526,81 @@ struct TeamDetailView: View {
     }
     
     private var teamCalendarView: some View {
-        HStack(spacing: 0) {
-            // Vertical Date Strip (Left Side)
-            TeamCalendarVerticalDateStrip(selectedDate: $selectedCalendarDate)
-                .frame(width: 80)
-                .background(Color.neuBackground)
-            
-            // Tasks Content (Right Side)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Selected date header
-                    HStack {
-                        Text(formatSelectedDate(selectedCalendarDate))
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.neuTextPrimary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Current date header
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(formatCurrentDate())
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
                         
-                        Spacer()
+                        Text("团队任务")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
                     
-                    // Display tasks for selected date
-                    VStack(alignment: .leading, spacing: 12) {
-                        let teamTasks = dataManager.getTeamTasks(teamId: team.id)
-                        let filteredTasks = teamTasks.filter { task in
-                            guard let dueDate = task.dueDate else { return false }
-                            return Calendar.current.isDate(dueDate, inSameDayAs: selectedCalendarDate)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                
+                // Display all team tasks grouped by date
+                VStack(alignment: .leading, spacing: 16) {
+                    let teamTasks = dataManager.getTeamTasks(teamId: team.id)
+                    let groupedTasks = groupTasksByDate(teamTasks)
+                    
+                    if groupedTasks.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "calendar.badge.plus")
+                                .font(.system(size: 40))
+                                .foregroundColor(.secondary)
+                            
+                            Text("暂无团队任务")
+                                .font(.title3)
+                                .foregroundColor(.secondary)
+                            
+                            Text("创建第一个团队任务")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary.opacity(0.8))
                         }
-                        
-                        if filteredTasks.isEmpty {
-                            VStack(spacing: 16) {
-                                Image(systemName: "calendar.badge.plus")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.neuTextSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
+                    } else {
+                        ForEach(Array(groupedTasks.keys.sorted()), id: \.self) { date in
+                            VStack(alignment: .leading, spacing: 12) {
+                                // Date section header
+                                HStack {
+                                    Text(formatSectionDate(date))
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    
+                                    Spacer()
+                                    
+                                    Text("\(groupedTasks[date]?.count ?? 0) 个任务")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.secondary.opacity(0.1))
+                                        .cornerRadius(8)
+                                }
                                 
-                                Text("该日期暂无团队任务")
-                                    .font(.title3)
-                                    .foregroundColor(.neuTextSecondary)
-                                
-                                Text("选择其他日期或创建新任务")
-                                    .font(.subheadline)
-                                    .foregroundColor(.neuTextTertiary)
-                                    .multilineTextAlignment(.center)
+                                // Tasks for this date
+                                ForEach(groupedTasks[date] ?? []) { task in
+                                    TeamTaskRowView(task: task, team: team)
+                                }
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 40)
-                            .neumorphicInset(cornerRadius: 16)
-                        } else {
-                            ForEach(filteredTasks) { task in
-                                TeamTaskRowView(task: task, team: team)
-                            }
+                            .padding(.horizontal, 16)
                         }
                     }
-                    .padding(.horizontal, 16)
                 }
-                .padding(.bottom, 16)
             }
-            .background(Color.neuBackground)
+            .padding(.bottom, 16)
         }
+        .background(Color(.systemBackground))
     }
     
     private func formatSelectedDate(_ date: Date) -> String {
@@ -561,6 +608,37 @@ struct TeamDetailView: View {
         formatter.dateFormat = "M月d日 EEEE"
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter.string(from: date)
+    }
+    
+    private func formatCurrentDate() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M月d日 EEEE"
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter.string(from: Date())
+    }
+    
+    private func formatSectionDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M月d日 (EEEE)"
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter.string(from: date)
+    }
+    
+    private func groupTasksByDate(_ tasks: [Task]) -> [Date: [Task]] {
+        let calendar = Calendar.current
+        var groupedTasks: [Date: [Task]] = [:]
+        
+        for task in tasks {
+            guard let dueDate = task.dueDate else { continue }
+            let dateKey = calendar.startOfDay(for: dueDate)
+            
+            if groupedTasks[dateKey] == nil {
+                groupedTasks[dateKey] = []
+            }
+            groupedTasks[dateKey]?.append(task)
+        }
+        
+        return groupedTasks
     }
     
     @State private var selectedCalendarDate = Date()
@@ -1508,125 +1586,114 @@ struct TeamProjectCardView: View {
     let project: Project
     let team: Team
     @ObservedObject private var dataManager = TaskDataManager.shared
+    @State private var showingDetail = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(project.name)
-                        .font(.headline)
-                        .fontWeight(.semibold)
+        Button(action: {
+            showingDetail = true
+        }) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(project.name)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        if let description = project.description {
+                            Text(description)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                        }
                     
-                    if let description = project.description {
-                        Text(description)
-                            .font(.subheadline)
+                    Spacer()
+                    
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(project.statusDisplayName)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(hex: project.statusColor).opacity(0.2))
+                            .foregroundColor(Color(hex: project.statusColor))
+                            .cornerRadius(8)
+                        
+                        Text("Team: \(team.name)")
+                            .font(.caption2)
                             .foregroundColor(.secondary)
-                            .lineLimit(2)
                     }
                 }
                 
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(project.statusDisplayName)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(hex: project.statusColor).opacity(0.2))
-                        .foregroundColor(Color(hex: project.statusColor))
-                        .cornerRadius(8)
+                // Progress Bar
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Progress")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        
+                        Spacer()
+                        
+                        Text("\(project.completedTasks)/\(project.totalTasks)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     
-                    Text("Team: \(team.name)")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    ProgressView(value: project.progressPercentage)
+                        .progressViewStyle(LinearProgressViewStyle(tint: Color(hex: project.color)))
                 }
-            }
             
-            // Progress Bar
-            VStack(alignment: .leading, spacing: 4) {
+                // Team Members Preview
                 HStack {
-                    Text("Progress")
+                    Text("Team Members")
                         .font(.caption)
                         .fontWeight(.medium)
                     
                     Spacer()
                     
-                    Text("\(project.completedTasks)/\(project.totalTasks)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                ProgressView(value: project.progressPercentage)
-                    .progressViewStyle(LinearProgressViewStyle(tint: Color(hex: project.color)))
-            }
-            
-            // Team Members Preview
-            HStack {
-                Text("Team Members")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                
-                Spacer()
-                
-                HStack(spacing: -8) {
-                    ForEach(Array(team.members.prefix(3).enumerated()), id: \.offset) { index, member in
-                        Circle()
-                            .fill(Color.softTeal)
-                            .frame(width: 24, height: 24)
-                            .overlay(
-                                Text(String(member.name.prefix(1)).uppercased())
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                            )
-                            .overlay(
-                                Circle()
-                                    .stroke(Color(.systemBackground), lineWidth: 2)
-                            )
-                    }
-                    
-                    if team.members.count > 3 {
-                        Circle()
-                            .fill(Color(.systemGray4))
-                            .frame(width: 24, height: 24)
-                            .overlay(
-                                Text("+\(team.members.count - 3)")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                            )
+                    HStack(spacing: -8) {
+                        ForEach(Array(team.members.prefix(3).enumerated()), id: \.offset) { index, member in
+                            Circle()
+                                .fill(Color.softTeal)
+                                .frame(width: 24, height: 24)
+                                .overlay(
+                                    Text(String(member.name.prefix(1)).uppercased())
+                                        .font(.caption2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                )
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color(.systemBackground), lineWidth: 2)
+                                )
+                        }
+                        
+                        if team.members.count > 3 {
+                            Circle()
+                                .fill(Color(.systemGray4))
+                                .frame(width: 24, height: 24)
+                                .overlay(
+                                    Text("+\(team.members.count - 3)")
+                                        .font(.caption2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                )
+                        }
                     }
                 }
-            }
-            
-            // Action Buttons
-            HStack(spacing: 12) {
-                TeamProjectActionButton(
-                    title: "Add Task",
-                    icon: "plus.circle.fill",
-                    color: .blue,
-                    project: project,
-                    team: team
-                )
                 
-                TeamProjectActionButton(
-                    title: "View Tasks",
-                    icon: "list.bullet",
-                    color: .green,
-                    project: project,
-                    team: team
-                )
-                
-                Spacer()
             }
         }
+        .foregroundColor(.primary)
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.systemBackground))
                 .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         )
+        .fullScreenCover(isPresented: $showingDetail) {
+            ProjectDetailView(project: project)
+        }
     }
 }
 
@@ -1841,7 +1908,7 @@ struct TeamProjectActionButton: View {
             .cornerRadius(8)
         }
         .sheet(isPresented: $showingCreateTask) {
-            CreateTeamTaskView(project: project, team: team)
+            TaskInputView(team: team, project: project)
         }
         .sheet(isPresented: $showingTaskList) {
             TeamTaskListView(project: project, team: team)

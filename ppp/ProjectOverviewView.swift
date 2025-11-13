@@ -12,6 +12,8 @@ struct ProjectOverviewView: View {
     @State private var searchText = ""
     @ObservedObject private var dataManager = TaskDataManager.shared
     
+    private let filters = ["全部", "进行中", "已完成", "规划中"]
+    
     private var statistics: ProjectStatistics {
         ProjectStatistics(
             totalProjects: dataManager.allProjects.count,
@@ -78,96 +80,48 @@ struct ProjectOverviewView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Compact Header
             compactHeaderView
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
             
-            // Filter Bar
             filterBarView
                 .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+                .padding(.bottom, 12)
             
-            // Projects List
             ScrollView {
-                LazyVStack(spacing: 12) {
-                    // Personal Projects Section
+                LazyVStack(spacing: 20) {
                     if !filteredPersonalProjects.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("个人项目")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                
-                                Spacer()
-                                
-                                Text("\(filteredPersonalProjects.count) 项目")
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.neuAccent.opacity(0.15))
-                                    .foregroundColor(.neuAccent)
-                                    .cornerRadius(8)
-                            }
+                        sectionHeader(title: "个人项目", count: filteredPersonalProjects.count, accent: .blue)
                             .padding(.horizontal, 20)
-                            
-                            ForEach(filteredPersonalProjects) { project in
-                                PersonalProjectCardView(project: project)
-                                    .padding(.horizontal, 20)
-                            }
+                        
+                        ForEach(filteredPersonalProjects) { project in
+                            ProjectOverviewCard(project: project, categoryLabel: "个人")
+                                .padding(.horizontal, 20)
                         }
                     }
                     
-                    // Team Projects Section
                     if !filteredTeamProjects.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("团队项目")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                
-                                Spacer()
-                                
-                                Text("\(filteredTeamProjects.count) 项目")
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.green.opacity(0.1))
-                                    .foregroundColor(.green)
-                                    .cornerRadius(8)
-                            }
+                        sectionHeader(title: "团队项目", count: filteredTeamProjects.count, accent: .green)
                             .padding(.horizontal, 20)
-                            
-                            ForEach(filteredTeamProjects) { project in
-                                TeamProjectOverviewCardView(project: project, team: getTeamForProject(project))
-                                    .padding(.horizontal, 20)
-                            }
+                        
+                        ForEach(filteredTeamProjects) { project in
+                            ProjectOverviewCard(project: project, categoryLabel: getTeamForProject(project).name)
+                                .padding(.horizontal, 20)
                         }
                     }
                     
-                    // Empty State
                     if filteredPersonalProjects.isEmpty && filteredTeamProjects.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "folder.badge.questionmark")
-                                .font(.system(size: 50))
-                                .foregroundColor(.secondary)
-                            
-                            Text("没有找到项目")
-                                .font(.title3)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-                            
-                            Text("尝试调整筛选条件或搜索关键词")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(.vertical, 40)
+                        emptyStateView
+                            .padding(.top, 80)
                     }
                 }
-                .padding(.bottom, 100) // Space for bottom navigation
+                .padding(.vertical, 20)
+                .padding(.bottom, 100)
             }
-            .background(Color.neuBackground)
+            .background(Color(.systemBackground))
         }
-        .background(Color.neuBackground)
+        .background(Color(.systemBackground))
     }
     
     private func getTeamForProject(_ project: Project) -> Team {
@@ -177,29 +131,33 @@ struct ProjectOverviewView: View {
     
     // MARK: - Compact Header View - Neumorphic Style
     private var compactHeaderView: some View {
-        HStack {
-            Text("项目概览")
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(.neuTextPrimary)
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("项目概览")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.primary)
+                
+                Text("管理个人与团队项目进度")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
             
             Spacer()
             
-            NeumorphicIconButton(
-                icon: "magnifyingglass",
-                size: 40,
-                iconSize: 18,
-                color: .neuBackground,
-                iconColor: .neuAccent,
-                action: {
-                    // Search action
-                }
-            )
+            Button {
+                // Search action placeholder
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.primary)
+                    .padding(12)
+                    .background(
+                        Circle()
+                            .fill(Color(.systemGray6))
+                    )
+            }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .padding(.bottom, 12)
-        .background(Color.neuBackground)
     }
     
     // MARK: - Statistics Row View - Neumorphic Style
@@ -249,20 +207,142 @@ struct ProjectOverviewView: View {
     // MARK: - Filter Bar View - Neumorphic Style
     private var filterBarView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(["全部", "进行中", "已完成", "规划中"], id: \.self) { filter in
-                    NeumorphicPillButton(
-                        title: filter,
-                        color: .neuAccent,
-                        isSelected: selectedFilter == filter
-                    ) {
-                        selectedFilter = filter
-                    }
+            HStack(spacing: 12) {
+                ForEach(filters, id: \.self) { filter in
+                    let isSelected = selectedFilter == filter
+                    Text(filter)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(isSelected ? .white : .primary)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(isSelected ? Color.blue : Color(.systemGray6))
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 1)
+                        )
+                        .onTapGesture {
+                            selectedFilter = filter
+                        }
                 }
             }
+            .padding(.vertical, 4)
         }
     }
+    
+    private func sectionHeader(title: String, count: Int, accent: Color) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.primary)
+            
+            Spacer()
+            
+            Text("\(count) 项目")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(accent)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(accent.opacity(0.12))
+                )
+        }
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "tray")
+                .font(.system(size: 48, weight: .light))
+                .foregroundColor(.secondary)
+            
+            Text("暂无匹配的项目")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.primary)
+            
+            Text("试试修改筛选条件或搜索内容")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 32)
+        .multilineTextAlignment(.center)
+    }
 }
+
+// MARK: - Project Overview Card
+struct ProjectOverviewCard: View {
+    let project: Project
+    let categoryLabel: String
+    @State private var showingDetail = false
+    
+    var body: some View {
+        Button {
+            showingDetail = true
+        } label: {
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(Color(hex: project.color))
+                    .frame(width: 6)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text(project.name)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        Text("\(project.completedTasks)/\(project.totalTasks) 任务")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Text(categoryLabel)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Last Update: \(formatDate(project.updatedAt))")
+                                .font(.system(size: 12))
+                        }
+                        .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 20)
+                .padding(.horizontal, 24)
+            }
+            .frame(maxWidth: .infinity, minHeight: 108, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(.systemBackground))
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+        }
+        .buttonStyle(.plain)
+        .fullScreenCover(isPresented: $showingDetail) {
+            ProjectDetailView(project: project)
+        }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+}
+
 
 // MARK: - Project Card View (Same as before)
 struct ProjectCardView: View {
@@ -528,104 +608,91 @@ struct TeamProjectOverviewCardView: View {
     @State private var showingCreateTask = false
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Left: Color indicator
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(hex: project.color))
-                .frame(width: 4)
-            
-            // Middle: Project info
-            VStack(alignment: .leading, spacing: 6) {
-                // Project name and team
-                HStack {
-                    Text(project.name)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.neuTextPrimary)
-                        .lineLimit(1)
-                    
-                    Spacer()
-                    
-                    Text(team.name)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.green.opacity(0.15))
-                        .foregroundColor(.green)
-                        .cornerRadius(6)
-                }
+        Button(action: {
+            showingDetail = true
+        }) {
+            HStack(spacing: 12) {
+                // Left: Color indicator
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(hex: project.color))
+                    .frame(width: 4)
                 
-                // Progress bar
-                HStack(spacing: 8) {
-                    NeumorphicProgressView(
-                        progress: project.progressPercentage,
-                        color: Color(hex: project.color),
-                        height: 6
-                    )
-                    
-                    Text("\(Int(project.progressPercentage * 100))%")
-                        .font(.caption2)
-                        .foregroundColor(.neuTextSecondary)
-                        .frame(width: 35, alignment: .trailing)
-                }
+                // Middle: Project info
+                VStack(alignment: .leading, spacing: 6) {
+                    // Project name and team
+                    HStack {
+                        Text(project.name)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.neuTextPrimary)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        Text(team.name)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.15))
+                            .foregroundColor(.green)
+                            .cornerRadius(6)
+                    }
                 
-                // Team members and tasks
-                HStack(spacing: 8) {
-                    HStack(spacing: -6) {
-                        ForEach(Array(team.members.prefix(3).enumerated()), id: \.offset) { index, member in
-                            Circle()
-                                .fill(Color(hex: project.color))
-                                .frame(width: 18, height: 18)
-                                .overlay(
-                                    Text(String(member.name.prefix(1)).uppercased())
-                                        .font(.system(size: 9, weight: .semibold))
-                                        .foregroundColor(.white)
-                                )
+                    // Progress bar
+                    HStack(spacing: 8) {
+                        NeumorphicProgressView(
+                            progress: project.progressPercentage,
+                            color: Color(hex: project.color),
+                            height: 6
+                        )
+                        
+                        Text("\(Int(project.progressPercentage * 100))%")
+                            .font(.caption2)
+                            .foregroundColor(.neuTextSecondary)
+                            .frame(width: 35, alignment: .trailing)
+                    }
+                
+                    // Team members and tasks
+                    HStack(spacing: 8) {
+                        HStack(spacing: -6) {
+                            ForEach(Array(team.members.prefix(3).enumerated()), id: \.offset) { index, member in
+                                Circle()
+                                    .fill(Color(hex: project.color))
+                                    .frame(width: 18, height: 18)
+                                    .overlay(
+                                        Text(String(member.name.prefix(1)).uppercased())
+                                            .font(.system(size: 9, weight: .semibold))
+                                            .foregroundColor(.white)
+                                    )
+                            }
+                            
+                            if team.members.count > 3 {
+                                Circle()
+                                    .fill(Color.neuAccent.opacity(0.3))
+                                    .frame(width: 18, height: 18)
+                                    .overlay(
+                                        Text("+\(team.members.count - 3)")
+                                            .font(.system(size: 8, weight: .semibold))
+                                            .foregroundColor(.neuTextPrimary)
+                                    )
+                            }
                         }
                         
-                        if team.members.count > 3 {
-                            Circle()
-                                .fill(Color.neuAccent.opacity(0.3))
-                                .frame(width: 18, height: 18)
-                                .overlay(
-                                    Text("+\(team.members.count - 3)")
-                                        .font(.system(size: 8, weight: .semibold))
-                                        .foregroundColor(.neuTextPrimary)
-                                )
-                        }
+                        Spacer()
+                        
+                        Text("\(project.completedTasks)/\(project.totalTasks) 任务")
+                            .font(.caption2)
+                            .foregroundColor(.neuTextSecondary)
                     }
-                    
-                    Spacer()
-                    
-                    Text("\(project.completedTasks)/\(project.totalTasks) 任务")
-                        .font(.caption2)
-                        .foregroundColor(.neuTextSecondary)
-                }
-            }
-            
-            // Right: Action buttons
-            VStack(spacing: 6) {
-                Button(action: {
-                    showingCreateTask = true
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.neuAccent)
                 }
                 
-                Button(action: {
-                    showingDetail = true
-                }) {
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.green)
-                }
             }
         }
+        .foregroundColor(.primary)
         .neumorphicCard(cornerRadius: 16, padding: 12)
         .sheet(isPresented: $showingCreateTask) {
-            CreateTeamTaskOverviewView(project: project, team: team)
+            TaskInputView(team: team, project: project)
         }
         .fullScreenCover(isPresented: $showingDetail) {
             ProjectDetailView(project: project)

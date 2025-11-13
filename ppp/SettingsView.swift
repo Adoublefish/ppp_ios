@@ -8,286 +8,327 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    // 设置状态
-    @State private var notificationsEnabled = true
-    @State private var calendarSyncEnabled = true
-    @State private var aiFeatureEnabled = true
-    @State private var darkModePreference = DarkModePreference.automatic
-    @State private var selectedLanguage = Language.chinese
-    @State private var cloudBackupEnabled = true
+    @ObservedObject private var userManager = UserDataManager.shared
     
     var body: some View {
+        NavigationStack {
+            ZStack(alignment: .top) {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
+                
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 24) {
+                        headerSection
+                        
+                        profileCard
+                        
+                        statsCard
+                        
+                        settingsSection(title: "通知") {
+                            settingsCard {
+                                notificationToggleRow
+                                settingsDivider
+                                notificationDetailRow
+                            }
+                        }
+                        
+                        settingsSection(title: "同步与备份") {
+                            settingsCard {
+                                calendarSyncToggleRow
+                                settingsDivider
+                                calendarSyncDetailRow
+                                settingsDivider
+                                cloudBackupToggleRow
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 36)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Header & Profile
+extension SettingsView {
+    private var headerSection: some View {
         VStack(spacing: 0) {
-            // Custom Header
-            HStack {
-                Text("设置")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
-            .background(Color(.systemBackground))
+            Text("设置")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(.primary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
             
-            // Content
-            List {
-                // 通知设置
-                notificationSection
-                
-                // 同步设置
-                syncSection
-                
-                // 外观设置
-                appearanceSection
-                
-                // AI功能设置
-                aiSection
-                
-                // 数据与隐私
-                dataPrivacySection
-                
-                // 关于应用
-                aboutSection
-            }
-            .listStyle(InsetGroupedListStyle())
+            Divider()
+                .frame(height: 1)
+                .background(Color(.systemGray4))
         }
-        .background(Color(.systemGroupedBackground))
-    }
-}
-
-// MARK: - Notification Section
-extension SettingsView {
-    private var notificationSection: some View {
-        Section {
-            HStack {
-                Label("推送通知", systemImage: "bell")
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                Toggle("", isOn: $notificationsEnabled)
-            }
-            
-            if notificationsEnabled {
-                NavigationLink(destination: NotificationDetailView()) {
-                    HStack {
-                        Image(systemName: "bell.badge")
-                            .foregroundColor(.orange)
-                            .frame(width: 20)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("通知详细设置")
-                                .font(.subheadline)
-                            Text("任务提醒、截止日期等")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-            }
-        } header: {
-            Text("通知")
-        } footer: {
-            if !notificationsEnabled {
-                Text("关闭后将不会收到任何推送通知")
-            }
-        }
-    }
-}
-
-// MARK: - Sync Section
-extension SettingsView {
-    private var syncSection: some View {
-        Section {
-            HStack {
-                Label("日历同步", systemImage: "calendar")
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                Toggle("", isOn: $calendarSyncEnabled)
-            }
-            
-            if calendarSyncEnabled {
-                NavigationLink(destination: CalendarSyncDetailView()) {
-                    HStack {
-                        Image(systemName: "calendar.badge.plus")
-                            .foregroundColor(.green)
-                            .frame(width: 20)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("同步设置")
-                                .font(.subheadline)
-                            Text("选择要同步的日历")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-            }
-            
-            HStack {
-                Label("云端备份", systemImage: "icloud")
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                Toggle("", isOn: $cloudBackupEnabled)
-            }
-        } header: {
-            Text("同步与备份")
-        } footer: {
-            Text("开启后任务和项目数据将自动同步到云端")
-        }
-    }
-}
-
-// MARK: - Appearance Section
-extension SettingsView {
-    private var appearanceSection: some View {
-        Section {
-            NavigationLink(destination: AppearanceDetailView(darkModePreference: $darkModePreference)) {
-                HStack {
-                    Label("外观", systemImage: "paintbrush")
-                        .foregroundColor(.primary)
-                    
-                    Spacer()
-                    
-                    Text(darkModePreference.displayName)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            NavigationLink(destination: LanguageDetailView(selectedLanguage: $selectedLanguage)) {
-                HStack {
-                    Label("语言", systemImage: "globe")
-                        .foregroundColor(.primary)
-                    
-                    Spacer()
-                    
-                    Text(selectedLanguage.displayName)
-                        .foregroundColor(.secondary)
-                }
-            }
-        } header: {
-            Text("个性化")
-        }
-    }
-}
-
-// MARK: - AI Section
-extension SettingsView {
-    private var aiSection: some View {
-        Section {
-            HStack {
-                Label("AI功能", systemImage: "brain.head.profile")
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                Toggle("", isOn: $aiFeatureEnabled)
-            }
-            
-            if aiFeatureEnabled {
-                NavigationLink(destination: AISettingsDetailView()) {
-                    HStack {
-                        Image(systemName: "wand.and.rays")
-                            .foregroundColor(.purple)
-                            .frame(width: 20)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("AI助手设置")
-                                .font(.subheadline)
-                            Text("智能建议、任务分解等")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-            }
-        } header: {
-            Text("智能功能")
-        } footer: {
-            Text("AI功能可以帮助您更高效地管理任务和项目")
-        }
-    }
-}
-
-// MARK: - Data Privacy Section
-extension SettingsView {
-    private var dataPrivacySection: some View {
-        Section {
-            NavigationLink(destination: PrivacyDetailView()) {
-                Label("隐私政策", systemImage: "hand.raised")
-                    .foregroundColor(.primary)
-            }
-            
-            NavigationLink(destination: DataExportView()) {
-                Label("导出数据", systemImage: "square.and.arrow.up")
-                    .foregroundColor(.primary)
-            }
-            
-            Button(action: clearCache) {
-                HStack {
-                    Label("清理缓存", systemImage: "trash")
-                        .foregroundColor(.orange)
-                    
-                    Spacer()
-                    
-                    Text("2.3 MB")
-                        .foregroundColor(.secondary)
-                }
-            }
-        } header: {
-            Text("数据与隐私")
-        }
-    }
-}
-
-// MARK: - About Section
-extension SettingsView {
-    private var aboutSection: some View {
-        Section {
-            NavigationLink(destination: HelpCenterView()) {
-                Label("帮助中心", systemImage: "questionmark.circle")
-                    .foregroundColor(.primary)
-            }
-            
-            NavigationLink(destination: ContactSupportView()) {
-                Label("联系客服", systemImage: "message")
-                    .foregroundColor(.primary)
-            }
-            
-            Button(action: rateApp) {
-                Label("评价应用", systemImage: "star")
-                    .foregroundColor(.primary)
-            }
-            
-            NavigationLink(destination: AboutAppView()) {
-                Label("关于PPP", systemImage: "info.circle")
-                    .foregroundColor(.primary)
-            }
-        } header: {
-            Text("帮助与支持")
-        }
-    }
-}
-
-// MARK: - Helper Functions
-extension SettingsView {
-    private func clearCache() {
-        // 实现清理缓存逻辑
-        print("清理缓存")
+        .frame(maxWidth: .infinity)
+        .background(
+            Color(.systemBackground)
+                .ignoresSafeArea(edges: .top)
+        )
+        .padding(.horizontal, -20)
     }
     
-    private func rateApp() {
-        // 实现应用评价逻辑
-        print("评价应用")
+    private var profileCard: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 0.46, green: 0.61, blue: 0.99),
+                                     Color(red: 0.53, green: 0.37, blue: 1.0)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 68, height: 68)
+                
+                Text(userManager.userInitials)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(userManager.userName)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Text(userManager.userEmail)
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                
+                Text("Member since March 2024")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.07), radius: 12, x: 0, y: 6)
+        )
+    }
+    
+    private var statsCard: some View {
+        let stats = userManager.getUserStatistics()
+        
+        return HStack(spacing: 0) {
+            statItem(value: "\(stats.completedTasks)", label: "Tasks Completed", color: Color(red: 0.10, green: 0.47, blue: 1.0))
+            
+            statDivider
+            
+            statItem(value: "\(stats.totalProjects)", label: "Active Projects", color: Color(red: 0.10, green: 0.72, blue: 0.38))
+            
+            statDivider
+            
+            statItem(value: "\(stats.totalHours)h", label: "Time Logged", color: Color(red: 1.0, green: 0.60, blue: 0.07))
+        }
+        .padding(.vertical, 18)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.07), radius: 12, x: 0, y: 6)
+        )
+    }
+    
+    private func statItem(value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 6) {
+            Text(value)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(color)
+            
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+    }
+    
+    private var statDivider: some View {
+        Rectangle()
+            .fill(Color(.systemGray5))
+            .frame(width: 1, height: 48)
+    }
+}
+
+// MARK: - Settings Sections
+extension SettingsView {
+    @ViewBuilder
+    private func settingsSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.secondary)
+            content()
+        }
+    }
+    
+    @ViewBuilder
+    private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) {
+            content()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 6)
+        )
+    }
+    
+    private var notificationToggleRow: some View {
+        toggleRow(
+            title: "推送通知",
+            subtitle: nil,
+            systemImage: "bell",
+            tint: Color(red: 0.10, green: 0.47, blue: 1.0),
+            isOn: notificationsBinding
+        )
+    }
+    
+    private var notificationDetailRow: some View {
+        navigationRow(
+            title: "通知详细设置",
+            subtitle: "任务提醒、截止日期等",
+            systemImage: "bell.badge",
+            tint: Color.orange
+        ) {
+            NotificationDetailView()
+        }
+    }
+    
+    private var calendarSyncToggleRow: some View {
+        toggleRow(
+            title: "日历同步",
+            subtitle: nil,
+            systemImage: "calendar",
+            tint: Color(red: 0.19, green: 0.60, blue: 1.0),
+            isOn: calendarSyncBinding
+        )
+    }
+    
+    private var calendarSyncDetailRow: some View {
+        navigationRow(
+            title: "同步设置",
+            subtitle: "选择要同步的日历",
+            systemImage: "arrow.triangle.2.circlepath",
+            tint: Color(red: 0.22, green: 0.68, blue: 0.76)
+        ) {
+            CalendarSyncDetailView()
+        }
+    }
+    
+    private var cloudBackupToggleRow: some View {
+        toggleRow(
+            title: "云端备份",
+            subtitle: "开启后任务和项目数据将自动同步到云端",
+            systemImage: "icloud",
+            tint: Color(red: 0.80, green: 0.82, blue: 0.90),
+            isOn: cloudBackupBinding
+        )
+    }
+    
+    private var notificationsBinding: Binding<Bool> {
+        Binding(
+            get: { userManager.notificationsEnabled },
+            set: { userManager.notificationsEnabled = $0 }
+        )
+    }
+    
+    private var calendarSyncBinding: Binding<Bool> {
+        Binding(
+            get: { userManager.calendarSyncEnabled },
+            set: { userManager.calendarSyncEnabled = $0 }
+        )
+    }
+    
+    private var cloudBackupBinding: Binding<Bool> {
+        Binding(
+            get: { userManager.cloudBackupEnabled },
+            set: { userManager.cloudBackupEnabled = $0 }
+        )
+    }
+    
+    private var settingsDivider: some View {
+        Divider()
+            .padding(.vertical, 8)
+            .padding(.leading, 58)
+    }
+    
+    private func settingsIcon(systemImage: String, tint: Color) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundColor(tint == Color(red: 0.80, green: 0.82, blue: 0.90) ? Color(red: 0.36, green: 0.41, blue: 0.53) : tint)
+            .frame(width: 42, height: 42)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(tint.opacity(tint == Color(red: 0.80, green: 0.82, blue: 0.90) ? 0.4 : 0.15))
+            )
+    }
+    
+    private func toggleRow(title: String, subtitle: String?, systemImage: String, tint: Color, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            rowText(title: title, subtitle: subtitle, systemImage: systemImage, tint: tint)
+        }
+        .toggleStyle(SwitchToggleStyle(tint: Color(red: 0.10, green: 0.47, blue: 1.0)))
+        .padding(.vertical, 4)
+    }
+    
+    private func navigationRow<Destination: View>(title: String, subtitle: String?, systemImage: String, tint: Color, @ViewBuilder destination: () -> Destination) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: 16) {
+                settingsIcon(systemImage: systemImage, tint: tint)
+                
+                VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 4) {
+                    Text(title)
+                        .font(.system(size: 15))
+                        .foregroundColor(.primary)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color(.systemGray3))
+            }
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private func rowText(title: String, subtitle: String?, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 16) {
+            settingsIcon(systemImage: systemImage, tint: tint)
+            
+            VStack(alignment: .leading, spacing: subtitle == nil ? 0 : 4) {
+                Text(title)
+                    .font(.system(size: 15))
+                    .foregroundColor(.primary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
     }
 }
 
@@ -308,21 +349,13 @@ enum DarkModePreference: String, CaseIterable, CustomStringConvertible {
     var description: String {
         return displayName
     }
-}
-
-enum Language: String, CaseIterable, CustomStringConvertible {
-    case chinese = "zh-CN"
-    case english = "en"
     
-    var displayName: String {
+    var preferredColorScheme: ColorScheme? {
         switch self {
-        case .chinese: return "简体中文"
-        case .english: return "English"
+        case .light: return .light
+        case .dark: return .dark
+        case .automatic: return nil
         }
-    }
-    
-    var description: String {
-        return displayName
     }
 }
 
@@ -400,32 +433,6 @@ struct AppearanceDetailView: View {
             }
         }
         .navigationTitle("外观")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-struct LanguageDetailView: View {
-    @Binding var selectedLanguage: Language
-    
-    var body: some View {
-        List {
-            ForEach(Language.allCases, id: \.self) { language in
-                Button(action: {
-                    selectedLanguage = language
-                }) {
-                    HStack {
-                        Text(language.displayName)
-                            .foregroundColor(.primary)
-                        Spacer()
-                        if selectedLanguage == language {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
-                        }
-                    }
-                }
-            }
-        }
-        .navigationTitle("语言")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -616,6 +623,7 @@ struct FeatureRow: View {
         }
     }
 }
+
 
 #Preview {
     SettingsView()

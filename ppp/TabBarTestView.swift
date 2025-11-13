@@ -2,7 +2,6 @@ import SwiftUI
 
 struct TabBarTestView: View {
     @State private var selectedTab = 0
-    @State private var useAdvancedVersion = false
     
     private let tabs = [
         TabItem(title: "首页", icon: "house", selectedIcon: "house.fill"),
@@ -14,8 +13,7 @@ struct TabBarTestView: View {
     
     var body: some View {
         ZStack {
-            // Neumorphic background
-            Color.neuBackground
+            Color(.systemGroupedBackground)
                 .ignoresSafeArea()
             
             VStack {
@@ -36,10 +34,6 @@ struct TabBarTestView: View {
                         .font(.title2)
                         .foregroundColor(.secondary)
                     
-                    // Toggle for version
-                    Toggle("使用高级版本", isOn: $useAdvancedVersion)
-                        .padding(.horizontal, 40)
-                        .toggleStyle(SwitchToggleStyle(tint: .blue))
                 }
                 .padding(.top, 50)
                 
@@ -72,20 +66,12 @@ struct TabBarTestView: View {
             // Tab Bar
             VStack {
                 Spacer()
-                if useAdvancedVersion {
-                    NeumorphicInsetTabBar(
-                        selectedTab: $selectedTab,
-                        tabs: tabs
-                    )
-                } else {
-                    NeumorphicTabBar(
-                        selectedTab: $selectedTab,
-                        tabs: tabs
-                    )
-                }
+                NeumorphicTabBar(
+                    selectedTab: $selectedTab,
+                    tabs: tabs
+                )
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: useAdvancedVersion)
     }
 }
 

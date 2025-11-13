@@ -12,53 +12,44 @@ struct MainTabView: View {
     ]
     
     var body: some View {
-        ZStack {
-            // Neumorphic monochromatic background
-            Color.neuBackground
-                .ignoresSafeArea()
-            
-            // Main content area - single view based on selected tab
-            VStack(spacing: 0) {
-                // Display the selected view with animation
-                Group {
-                    switch selectedTab {
-                    case 0:
-                        DashboardView()
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    case 1:
-                        ProjectOverviewView()
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    case 2:
-                        TaskInputView()
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    case 3:
-                        TeamCollaborationView()
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    case 4:
-                        SettingsView()
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    default:
-                        DashboardView()
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .animation(.easeInOut(duration: 0.3), value: selectedTab)
+        GeometryReader { proxy in
+            ZStack {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
                 
-                // Space for the fixed tab bar
-                Spacer()
-                    .frame(height: 120)
-            }
-            
-
-            
-            // Neumorphic Tab Bar - Fixed at bottom
-            VStack {
-                Spacer()
-                NeumorphicTabBar(
-                    selectedTab: $selectedTab,
-                    tabs: tabs
-                )
+                VStack(spacing: 0) {
+                    Group {
+                        switch selectedTab {
+                        case 0:
+                            DashboardView()
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        case 1:
+                            ProjectOverviewView()
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        case 2:
+                            TaskInputView()
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        case 3:
+                            TeamCollaborationView()
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        case 4:
+                            SettingsView()
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        default:
+                            DashboardView()
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .animation(.easeInOut(duration: 0.3), value: selectedTab)
+                    
+                    CustomTabBar(
+                        selectedTab: $selectedTab,
+                        tabs: tabs
+                    )
+                    .padding(.top, 4)
+                }
+                .ignoresSafeArea(.all, edges: .bottom)
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)

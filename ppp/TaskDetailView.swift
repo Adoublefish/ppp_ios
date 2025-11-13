@@ -47,6 +47,7 @@ struct TaskDetailView: View {
     @State private var showingOCREditor = false
     @State private var suggestedTitle = ""
     @State private var suggestedDescription = ""
+    @State private var showingFullScreenImage = false
     
     // Computed properties
     private var currentTask: Task {
@@ -58,9 +59,55 @@ struct TaskDetailView: View {
         return dataManager.getProject(byId: projectId)
     }
     
+    private var assigneeDisplayName: String {
+        guard let assigneeId = currentTask.assigneeId else {
+            return "未分配"
+        }
+        return getAssigneeName(assigneeId)
+    }
+    
+    private var descriptionDisplayText: String {
+        currentTask.description.isEmpty ? "暂无描述" : currentTask.description
+    }
+    
+    private var deadlineDisplayText: String {
+        guard let dueDate = currentTask.dueDate else {
+            return "No deadline"
+        }
+        return formatDueDateShort(dueDate)
+    }
+    
+    private var deadlineDisplayColor: Color {
+        currentTask.dueDate.map(getDueDateColor) ?? .secondary
+    }
+    
+    private var deadlineDetailText: String {
+        guard let dueDate = currentTask.dueDate else {
+            return "无截止时间"
+        }
+        return formatDateTime(dueDate)
+    }
+    
+    private var hasDueDate: Bool {
+        currentTask.dueDate != nil
+    }
+    
+    private var meetingTimeDisplayText: String {
+        let start = currentTask.startTime
+        let end = currentTask.endTime
+        
+        switch (start, end) {
+        case let (.some(start), .some(end)):
+            return "\(formatMeetingTime(start)) - \(formatMeetingTime(end))"
+        case let (.some(start), .none):
+            return formatMeetingTime(start)
+        default:
+            return "未设置"
+        }
+    }
+    
     var body: some View {
-        NavigationView {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 0) {
                     // Modern header section inspired by reference image
                     modernHeaderSection
@@ -86,12 +133,12 @@ struct TaskDetailView: View {
                     .padding(.bottom, 16)
                 }
             }
-            .background(Color(.systemBackground))
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Task Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
+                    Button(isEditing ? "取消" : "返回") {
                         if isEditing {
                             cancelEditing()
                         } else {
@@ -113,7 +160,6 @@ struct TaskDetailView: View {
                     .foregroundColor(.neuAccent)
                 }
             }
-        }
         .onAppear {
             initializeEditingState()
         }
@@ -177,95 +223,80 @@ struct TaskDetailView: View {
                 ]
             )
         }
+        .fullScreenCover(isPresented: $showingFullScreenImage) {
+            if let selectedImage = selectedImage {
+                FullScreenImageView(image: selectedImage)
+            }
+        }
     }
     
     // MARK: - Modern Header Section (inspired by reference image)
     private var modernHeaderSection: some View {
-        VStack(spacing: 0) {
-            // Priority badge at the top
-            HStack {
-                priorityBadge(currentTask.priority)
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            
-            // Task title
-            HStack {
-                Text(currentTask.title)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.leading)
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            
-            // Author and due date row
+        VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 16) {
-                // Author section
-                HStack(spacing: 8) {
-                    Image(systemName: "person.circle.fill")
-                        .font(.title3)
-                        .foregroundColor(.softTeal)
+                Circle()
+                    .fill(priorityColor(currentTask.priority))
+                    .frame(width: 56, height: 56)
+                    .overlay(
+                        Text(priorityDisplayName(currentTask.priority))
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundColor(.white)
+                    )
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(currentTask.title)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.leading)
                     
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Author")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(getAssigneeName(currentTask.assigneeId ?? UUID()))
+                    if let project = associatedProject {
+                        Text(project.name)
                             .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
                 Spacer()
-                
-                // Due date section
-                HStack(spacing: 8) {
-                    Image(systemName: "calendar")
-                        .font(.title3)
-                        .foregroundColor(.softTeal)
-                    
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("Due")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(currentTask.dueDate.map(formatDueDateShort) ?? "No deadline")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(currentTask.dueDate.map(getDueDateColor) ?? .secondary)
-                    }
-                }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 20)
             
-            // Completion toggle
-            HStack {
-                Button(action: {
-                    toggleCompletion()
-                }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: currentTask.isCompleted ? "checkmark.circle.fill" : "circle")
-                            .font(.title2)
-                            .foregroundColor(currentTask.isCompleted ? .green : .secondary)
-                        
-                        Text(currentTask.isCompleted ? "Completed" : "Mark as Complete")
-                            .font(.headline)
-                            .fontWeight(.medium)
-                            .foregroundColor(currentTask.isCompleted ? .green : .primary)
-                    }
-                }
+            HStack(spacing: 12) {
+                infoBadge(
+                    icon: "person.crop.circle",
+                    title: "Author",
+                    value: assigneeDisplayName
+                )
                 
-                Spacer()
+                infoBadge(
+                    icon: "calendar",
+                    title: "Due",
+                    value: deadlineDisplayText,
+                    valueColor: currentTask.dueDate.map(getDueDateColor) ?? .secondary
+                )
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
+            
+            Button(action: toggleCompletion) {
+                HStack(spacing: 12) {
+                    Image(systemName: currentTask.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundColor(currentTask.isCompleted ? .green : .secondary)
+                    
+                    Text(currentTask.isCompleted ? "已完成" : "Mark as Complete")
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .foregroundColor(currentTask.isCompleted ? .green : .primary)
+                    
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            
+            Divider()
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 8)
         .background(Color(.systemBackground))
     }
     
@@ -323,459 +354,96 @@ struct TaskDetailView: View {
                 .font(.headline)
                 .fontWeight(.semibold)
             
-            // Title
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "textformat")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Text("任务标题")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
-                    if isEditing {
-                        Text("*")
-                            .font(.subheadline)
-                            .foregroundColor(.red)
-                    }
-                    
-                    Spacer()
-                    
-                    if isEditing && !editedTitle.isEmpty {
-                        Text("\(editedTitle.count)/50")
-                            .font(.caption2)
-                            .foregroundColor(editedTitle.count > 45 ? .orange : .secondary)
-                    }
-                }
-                
-                if isEditing {
-                    TextField("输入任务标题", text: $editedTitle)
-                        .font(.body)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemBackground))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(
-                                            editedTitle.isEmpty ? 
-                                            Color(.systemGray4) : 
-                                            Color.softTeal.opacity(0.5),
-                                            lineWidth: editedTitle.isEmpty ? 1 : 1.5
-                                        )
-                                )
-                        )
-                        .onChange(of: editedTitle) { _, newValue in
-                            if newValue.count > 50 {
-                                editedTitle = String(newValue.prefix(50))
-                            }
-                        }
-                } else {
+            VStack(spacing: 0) {
+                detailRow(title: "任务标题") {
                     Text(currentTask.title)
                         .font(.body)
                         .foregroundColor(.primary)
                 }
-            }
-            
-            // Description
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "text.alignleft")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Text("任务描述")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    if isEditing && !editedDescription.isEmpty {
-                        Text("\(editedDescription.count)/500")
-                            .font(.caption2)
-                            .foregroundColor(editedDescription.count > 450 ? .orange : .secondary)
-                    }
-                }
                 
-                if isEditing {
-                    ZStack(alignment: .topLeading) {
-                        // Background
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.systemBackground))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        editedDescription.isEmpty ? 
-                                        Color(.systemGray4) : 
-                                        Color.softTeal.opacity(0.5),
-                                        lineWidth: editedDescription.isEmpty ? 1 : 1.5
-                                    )
-                            )
-                            .frame(minHeight: 120)
-                        
-                        // Text Editor
-                        TextEditor(text: $editedDescription)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 16)
-                            .background(Color.clear)
-                            .font(.body)
-                            .scrollContentBackground(.hidden)
-                            .onChange(of: editedDescription) { _, newValue in
-                                if newValue.count > 500 {
-                                    editedDescription = String(newValue.prefix(500))
-                                }
-                            }
-                        
-                        // Placeholder
-                        if editedDescription.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("描述任务详情、要求或项目背景...")
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 16)
-                            .allowsHitTesting(false)
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.2), value: editedDescription.isEmpty)
-                } else {
-                    Text(currentTask.description.isEmpty ? "暂无描述" : currentTask.description)
+                dividerRow
+                
+                detailRow(title: "任务描述", alignLeading: true) {
+                    Text(descriptionDisplayText)
                         .font(.body)
-                        .foregroundColor(currentTask.description.isEmpty ? .secondary : .primary)
+                        .foregroundColor(descriptionDisplayText == "暂无描述" ? .secondary : .primary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            
-            // Due Date
-            VStack(alignment: .leading, spacing: 8) {
-                Text("截止时间")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
                 
-                if isEditing {
-                    Button(action: {
-                        showingDatePicker = true
-                    }) {
-                        HStack {
-                            Text(formatDueDate(editedDueDate))
-                                .font(.body)
-                                .foregroundColor(.primary)
-                            
-                            Spacer()
-                            
-                            Image(systemName: "calendar")
-                                .font(.subheadline)
-                                .foregroundColor(.softTeal)
-                        }
-                        .padding(12)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                    }
-                } else {
-                    HStack {
-                        Image(systemName: "calendar")
-                            .font(.subheadline)
-                            .foregroundColor(currentTask.dueDate.map(getDueDateColor) ?? .secondary)
-                        
-                        Text(currentTask.dueDate.map(formatDueDate) ?? "无截止时间")
-                            .font(.body)
-                            .foregroundColor(currentTask.dueDate.map(getDueDateColor) ?? .secondary)
-                        
-                        Spacer()
-                        
-                        if let dueDate = currentTask.dueDate, isTaskOverdue(dueDate) && !currentTask.isCompleted {
-                            Text("已逾期")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.red)
-                                .cornerRadius(12)
-                        }
-                    }
-                }
-            }
-            
-            // 会议时间编辑（仅在编辑模式下显示）
-            if isEditing {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("会议时间设置")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
-                    // 开始时间
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("开始时间")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        
-                        Button(action: {
-                            showingStartTimePicker = true
-                        }) {
-                            HStack {
-                                Text(editedStartTime.map(formatDateTime) ?? "未设置")
-                                    .font(.body)
-                                    .foregroundColor(editedStartTime != nil ? .primary : .secondary)
-                                
-                                Spacer()
-                                
-                                if editedStartTime != nil {
-                                    Button(action: {
-                                        editedStartTime = nil
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                }
-                                
-                                Image(systemName: "calendar")
-                                    .font(.subheadline)
-                                    .foregroundColor(.softTeal)
-                            }
-                            .padding(12)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                        }
-                    }
-                    
-                    // 结束时间
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("结束时间")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        
-                        Button(action: {
-                            showingEndTimePicker = true
-                        }) {
-                            HStack {
-                                Text(editedEndTime.map(formatDateTime) ?? "未设置")
-                                    .font(.body)
-                                    .foregroundColor(editedEndTime != nil ? .primary : .secondary)
-                                
-                                Spacer()
-                                
-                                if editedEndTime != nil {
-                                    Button(action: {
-                                        editedEndTime = nil
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                }
-                                
-                                Image(systemName: "calendar")
-                                    .font(.subheadline)
-                                    .foregroundColor(.softTeal)
-                            }
-                            .padding(12)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                        }
-                    }
-                }
-            }
-            
-            // 负责人编辑
-            VStack(alignment: .leading, spacing: 8) {
-                Text("负责人")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                dividerRow
                 
-                if isEditing {
-                    Button(action: {
-                        showingAssigneePicker = true
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "person.circle")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            if let assigneeId = selectedAssigneeId {
-                                Text(getAssigneeName(assigneeId))
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                            } else {
-                                Text("选择负责人...")
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            if selectedAssigneeId != nil {
-                                Button(action: {
-                                    selectedAssigneeId = nil
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(12)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                    }
-                } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: "person.circle")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        
-                        if let assigneeId = currentTask.assigneeId {
-                            Text(getAssigneeName(assigneeId))
-                                .font(.body)
-                                .foregroundColor(.primary)
-                        } else {
-                            Text("未分配")
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-            }
-
-            // Priority and Category (for editing)
-            if isEditing {
-                HStack(spacing: 16) {
-                    // Priority
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("优先级")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        
-                        Picker("优先级", selection: $editedPriority) {
-                            ForEach(TaskPriority.allCases, id: \.self) { priority in
-                                Text(priorityDisplayName(priority))
-                                    .tag(priority)
-                            }
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                    }
-                    
-                    // Category
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("类别")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        
-                        Button(action: {
-                            showingCategoryPicker = true
-                        }) {
-                            HStack {
-                                Text(getCurrentCategoryDisplayName())
-                                    .font(.body)
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.down")
-                                    .font(.caption)
-                            }
-                            .foregroundColor(.primary)
-                            .padding(12)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                        }
-                    }
-                }
-            } else {
-                // Category display (非编辑模式)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("类别")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
-                    Text(getCurrentCategoryDisplayName())
+                detailRow(title: "截止时间") {
+                    Text(deadlineDetailText)
                         .font(.body)
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
+                        .foregroundColor(deadlineDisplayColor)
+                        .multilineTextAlignment(.trailing)
                 }
                 
-                // 会议时间信息（如果是时间段任务）
-                if currentTask.isTimeRangeTask {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("会议时间")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            if let startTime = currentTask.startTime {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "play.circle")
-                                        .font(.subheadline)
-                                        .foregroundColor(.green)
-                                    
-                                    Text("开始时间: \(formatDateTime(startTime))")
-                                        .font(.body)
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                            
-                            if let endTime = currentTask.endTime {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "stop.circle")
-                                        .font(.subheadline)
-                                        .foregroundColor(.red)
-                                    
-                                    Text("结束时间: \(formatDateTime(endTime))")
-                                        .font(.body)
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                            
-                            if let duration = currentTask.duration {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "clock")
-                                        .font(.subheadline)
-                                        .foregroundColor(.softTeal)
-                                    
-                                    Text("会议时长: \(duration)")
-                                        .font(.body)
-                                        .foregroundColor(.primary)
-                                }
-                            }
+                dividerRow
+                
+                detailRow(title: "负责人") {
+                    Text(assigneeDisplayName)
+                        .font(.body)
+                        .foregroundColor(assigneeDisplayName == "未分配" ? .secondary : .primary)
+                }
+                
+                dividerRow
+                
+                detailRow(title: "类别") {
+                    categoryChip(text: getCurrentCategoryDisplayName())
+                }
+                
+                dividerRow
+                
+                detailRow(title: "会议时间", alignLeading: true) {
+                    Text(meetingTimeDisplayText)
+                        .font(.body)
+                        .foregroundColor(meetingTimeDisplayText == "未设置" ? .secondary : .primary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(.systemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(Color(.systemGray5))
+                    )
+            )
+            
+            if let imageData = currentTask.attachmentImageData,
+               let uiImage = UIImage(data: imageData) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("附件图像")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 200)
+                        .clipped()
+                        .cornerRadius(16)
+                        .onTapGesture {
+                            selectedImage = uiImage
+                            showingFullScreenImage = true
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                    }
                 }
             }
         }
         .padding(20)
         .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .cornerRadius(22)
+        .shadow(color: Color.black.opacity(0.05), radius: 12, x: 0, y: 4)
     }
     
-    // MARK: - Project Section
+// MARK: - Project Section
     private var projectSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("关联项目")
@@ -902,8 +570,10 @@ struct TaskDetailView: View {
                     }
                 }
                 
-                // Estimated Hours
-                if let estimatedHours = currentTask.estimatedHours, estimatedHours > 0 {
+                // Estimated Hours (only for tasks with due date)
+                if hasDueDate,
+                   let estimatedHours = currentTask.estimatedHours,
+                   estimatedHours > 0 {
                     HStack {
                         Text("预估工时")
                             .font(.subheadline)
@@ -924,7 +594,10 @@ struct TaskDetailView: View {
                 }
                 
                 // Actual Hours (if completed and has actual hours)
-                if currentTask.isCompleted, let actualHours = currentTask.actualHours, actualHours > 0 {
+                if hasDueDate,
+                   currentTask.isCompleted,
+                   let actualHours = currentTask.actualHours,
+                   actualHours > 0 {
                     HStack {
                         Text("实际工时")
                             .font(.subheadline)
@@ -1468,8 +1141,10 @@ struct TaskDetailView: View {
             // Enhanced editing features
             photoOCRSection
             
-            // Time Estimation Section
-            timeEstimationSection
+            // Time Estimation Section (only when task has a due date)
+            if hasDueDate {
+                timeEstimationSection
+            }
             
             // Delete button
             deleteButtonSection
@@ -1491,7 +1166,7 @@ struct TaskDetailView: View {
                             .frame(maxHeight: 150)
                             .cornerRadius(8)
                             .onTapGesture {
-                                showingPhotoOptions = true
+                                showingFullScreenImage = true
                             }
                     }
                     
@@ -1693,19 +1368,24 @@ struct TaskDetailView: View {
         NavigationView {
             VStack {
                 DatePicker(
-                    "选择截止时间",
+                    "选择截止日期",
                     selection: $editedDueDate,
                     displayedComponents: [.date, .hourAndMinute]
                 )
-                .datePickerStyle(WheelDatePickerStyle())
+                .datePickerStyle(.graphical)
                 .padding()
                 
                 Spacer()
             }
-            .navigationTitle("设置截止时间")
+            .navigationTitle("选择截止日期")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") {
+                        showingDatePicker = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
                     Button("完成") {
                         showingDatePicker = false
                     }
@@ -2108,8 +1788,8 @@ struct TaskDetailView: View {
             // If not completed, complete the task first
             dataManager.toggleTaskCompletion(currentTask)
             
-            // Show time input for non-meeting tasks or meeting tasks without actual time
-            if currentTask.category != .meeting || currentTask.actualHours == nil {
+            // Only prompt for actual hours when task has a due date and isn't a meeting
+            if hasDueDate && currentTask.category != .meeting {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     showingTimeInput = true
                 }
@@ -2135,6 +1815,72 @@ struct TaskDetailView: View {
             .cornerRadius(12)
     }
     
+    private func infoBadge(icon: String, title: String, value: String, valueColor: Color = .primary) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(Color(.systemBackground))
+                    .frame(width: 32, height: 32)
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.softTeal)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(value)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(valueColor)
+            }
+            
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.systemGray6))
+        )
+    }
+    
+    @ViewBuilder
+    private func detailRow<Content: View>(title: String, alignLeading: Bool = false, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .frame(minWidth: 70, alignment: .leading)
+            
+            Spacer(minLength: 16)
+            
+            content()
+                .frame(maxWidth: .infinity, alignment: alignLeading ? .leading : .trailing)
+        }
+        .padding(.vertical, 12)
+    }
+    
+    private var dividerRow: some View {
+        Divider()
+            .padding(.leading, 0)
+    }
+    
+    private func categoryChip(text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .fontWeight(.medium)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(Color(.systemGray6))
+            )
+            .foregroundColor(.primary)
+    }
+    
     // MARK: - Formatting Methods
     
     private func formatDueDate(_ date: Date) -> String {
@@ -2157,6 +1903,13 @@ struct TaskDetailView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "dd MMM yyyy"
         formatter.locale = Locale(identifier: "en_US")
+        return formatter.string(from: date)
+    }
+    
+    private func formatMeetingTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd HH:mm"
+        formatter.locale = Locale(identifier: "zh_CN")
         return formatter.string(from: date)
     }
     

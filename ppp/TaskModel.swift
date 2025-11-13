@@ -9,8 +9,37 @@ import Foundation
 import CoreTransferable
 import SwiftUI
 
+// MARK: - 重复周期类型
+enum RecurrenceRule: String, Codable, CaseIterable {
+    case none = "none"
+    case daily = "daily"
+    case weekly = "weekly"
+    case monthly = "monthly"
+    case yearly = "yearly"
+    
+    var displayName: String {
+        switch self {
+        case .none: return "不重复"
+        case .daily: return "每天"
+        case .weekly: return "每周"
+        case .monthly: return "每月"
+        case .yearly: return "每年"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .none: return "calendar"
+        case .daily: return "sunrise"
+        case .weekly: return "calendar.badge.clock"
+        case .monthly: return "calendar.circle"
+        case .yearly: return "calendar.badge.plus"
+        }
+    }
+}
+
 // MARK: - Database-compatible Task Model
-struct Task: Identifiable, Codable {
+struct Task: Identifiable, Codable, Hashable {
     let id: UUID
     let title: String
     let description: String
@@ -28,6 +57,8 @@ struct Task: Identifiable, Codable {
     let assigneeId: UUID?
     let estimatedHours: Double?  // 预估所需时间（小时）
     let actualHours: Double?     // 实际花费时间（小时）
+    let recurrenceRule: RecurrenceRule  // 重复规则
+    let attachmentImageData: Data?  // 附图数据
     
     init(
         id: UUID = UUID(),
@@ -46,7 +77,9 @@ struct Task: Identifiable, Codable {
         projectId: UUID? = nil,
         assigneeId: UUID? = nil,
         estimatedHours: Double? = nil,
-        actualHours: Double? = nil
+        actualHours: Double? = nil,
+        recurrenceRule: RecurrenceRule = .none,
+        attachmentImageData: Data? = nil
     ) {
         self.id = id
         self.title = title
@@ -65,6 +98,8 @@ struct Task: Identifiable, Codable {
         self.assigneeId = assigneeId
         self.estimatedHours = estimatedHours
         self.actualHours = actualHours
+        self.recurrenceRule = recurrenceRule
+        self.attachmentImageData = attachmentImageData
     }
     
     // MARK: - Computed Properties
@@ -189,7 +224,7 @@ enum TaskCategory: String, CaseIterable, Codable {
         case .presentation: return .softMint
         case .milestone: return .red
         case .planning: return .mint
-        case .testing: return .yellow
+        case .testing: return Color(red: 0.9, green: 0.7, blue: 0.0) // Darker yellow for better visibility
         case .documentation: return .gray
         case .custom: return .secondary
         }

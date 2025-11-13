@@ -9,9 +9,13 @@ import SwiftUI
 
 @main
 struct pppApp: App {
+    @StateObject private var userManager = UserDataManager.shared
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(userManager)
+                .preferredColorScheme(userManager.darkModePreference.preferredColorScheme)
         }
     }
 }

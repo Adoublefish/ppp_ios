@@ -14,8 +14,9 @@ struct ProjectDetailView: View {
     @State private var showingAIAssistant = false
     @State private var selectedTask: Task? = nil
     @ObservedObject private var dataManager = TaskDataManager.shared
+    @ObservedObject private var themeManager = ThemeManager.shared
     
-    private let filterOptions = ["全部任务", "已完成", "进行中", "逾期", "高优先级"]
+    private let filterOptions = ["全部任务", "已完成", "进行中", "逾期"]
     
     private var filteredTasks: [Task] {
         let projectTasks = dataManager.tasksForProject(project.id)
@@ -30,11 +31,31 @@ struct ProjectDetailView: View {
                 guard let dueDate = task.dueDate else { return false }
                 return !task.isCompleted && dueDate < Date()
             }.sorted { $0.createdAt < $1.createdAt }
-        case "高优先级":
-            return projectTasks.filter { $0.priority == .high || $0.priority == .urgent }.sorted { $0.createdAt < $1.createdAt }
         default:
             // 默认按创建时间排序（时间线按创建时间显示）
             return projectTasks.sorted { $0.createdAt < $1.createdAt }
+        }
+    }
+    
+    @ViewBuilder
+    private func infoItem(icon: String, title: String, value: String, tint: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(tint)
+                .frame(width: 36, height: 36)
+                .background(tint.opacity(0.12))
+                .cornerRadius(12)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                
+                Text(value)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.primary)
+            }
         }
     }
     
@@ -51,9 +72,6 @@ struct ProjectDetailView: View {
             // Content
             ScrollView {
                 VStack(spacing: 24) {
-                    // Progress Section
-                    progressSection
-                    
                     // Filter Tabs
                     filterTabsSection
                     
@@ -87,16 +105,16 @@ struct ProjectDetailView: View {
                 Image(systemName: "chevron.left")
                     .font(.title3)
                     .fontWeight(.medium)
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
             }
             
             Spacer()
             
             // Title
             Text(project.name)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
                 .lineLimit(1)
             
             Spacer()
@@ -107,96 +125,65 @@ struct ProjectDetailView: View {
             }) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.title3)
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 8) // 大幅减少顶部距离
-        .padding(.bottom, 8) // 减少底部距离
-        .background(Color(hex: project.color))
+        .padding(.top, 16)
+        .padding(.bottom, 8)
+        .background(Color(.systemBackground))
     }
     
     // MARK: - Project Info Row
     private var projectInfoRowView: some View {
-        VStack(spacing: 12) {
-            // Status
+        let statusColor = Color(hex: project.statusColor)
+        let accentColor = Color(hex: project.color)
+        
+        return VStack(alignment: .leading, spacing: 18) {
             HStack {
                 Text(project.statusDisplayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(statusColor)
+                    .padding(.horizontal, 14)
                     .padding(.vertical, 6)
-                    .background(Color(hex: project.statusColor))
-                    .cornerRadius(16)
+                    .background(statusColor.opacity(0.12))
+                    .cornerRadius(18)
                 
                 Spacer()
+                
+                Text("\(project.completedTasks)/\(project.totalTasks) 任务")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.primary)
             }
             
-            // Info Grid (2x2)
             HStack(spacing: 20) {
-                // Due Date
-                HStack(spacing: 8) {
-                    Image(systemName: "calendar")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("截止日期")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(formatDate(project.endDate))
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                }
+                infoItem(
+                    icon: "calendar",
+                    title: "截止日期",
+                    value: formatDate(project.endDate),
+                    tint: accentColor
+                )
                 
-                Spacer()
+                Divider()
+                    .frame(height: 40)
+                    .background(Color(.systemGray5))
                 
-                // Time Investment
-                HStack(spacing: 8) {
-                    Image(systemName: "clock")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("已投入")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(project.formattedTimeLogged)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                }
+                infoItem(
+                    icon: "clock",
+                    title: "已投入",
+                    value: project.formattedTimeLogged,
+                    tint: accentColor
+                )
             }
         }
-        .padding(16)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color(.systemBackground))
+        )
+        .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 6)
     }
     
-    // MARK: - Progress Section
-    private var progressSection: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("任务进度")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                Text("已完成 \(project.completedTasks)/\(project.totalTasks) 个任务")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            
-            // Progress Bar
-            ProgressView(value: project.progressPercentage)
-                .progressViewStyle(LinearProgressViewStyle(tint: Color(hex: project.color)))
-                .scaleEffect(x: 1, y: 2, anchor: .center)
-        }
-    }
     
     // MARK: - Filter Tabs Section
     private var filterTabsSection: some View {
@@ -210,22 +197,98 @@ struct ProjectDetailView: View {
                     )
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.vertical, 4)
         }
     }
     
     // MARK: - Timeline Section
     private var timelineSection: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(filteredTasks.enumerated()), id: \.offset) { index, task in
-                                    TimelineTaskView(
-                        task: task,
-                        isLast: index == filteredTasks.count - 1,
-                        projectColor: project.color,
-                        onTaskTap: { selectedTask = task }
-                    )
+        let sections = groupedTaskSections
+        let accentColor = Color(hex: project.color)
+        
+        return VStack(alignment: .leading, spacing: 24) {
+            if sections.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 42))
+                        .foregroundColor(.secondary)
+                    
+                    Text("暂无相关任务")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    Text("创建任务或调整筛选条件以查看时间线")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 48)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(.systemBackground))
+                )
+            } else {
+                ForEach(Array(sections.enumerated()), id: \.offset) { sectionIndex, section in
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text(formatTimelineDate(section.date))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(Color(.secondaryLabel))
+                        
+                        ForEach(Array(section.tasks.enumerated()), id: \.element.id) { taskIndex, task in
+                            TimelineTaskCardView(
+                                task: task,
+                                timeText: formatTimelineTime(for: task),
+                                showTopConnector: !(sectionIndex == 0 && taskIndex == 0),
+                                showBottomConnector: !(sectionIndex == sections.count - 1 && taskIndex == section.tasks.count - 1),
+                                accentColor: accentColor,
+                                onTap: { selectedTask = task }
+                            )
+                        }
+                    }
+                }
             }
         }
+    }
+    
+    private var groupedTaskSections: [(date: Date, tasks: [Task])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: filteredTasks) { task in
+            return calendar.startOfDay(for: timelineReferenceDate(for: task))
+        }
+        
+        return grouped
+            .map { (date, tasks) in
+                (
+                    date: date,
+                    tasks: tasks.sorted { timelineReferenceDate(for: $0) < timelineReferenceDate(for: $1) }
+                )
+            }
+            .sorted { $0.date < $1.date }
+    }
+    
+    private func timelineReferenceDate(for task: Task) -> Date {
+        if let start = task.startTime {
+            return start
+        } else if let due = task.dueDate {
+            return due
+        } else {
+            return task.createdAt
+        }
+    }
+    
+    private func formatTimelineDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日"
+        return formatter.string(from: date)
+    }
+    
+    private func formatTimelineTime(for task: Task) -> String {
+        let date = timelineReferenceDate(for: task)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
     
     // MARK: - AI Assistant Section
@@ -234,41 +297,46 @@ struct ProjectDetailView: View {
             showingAIAssistant = true
         }) {
             HStack(spacing: 16) {
-                Image(systemName: "brain.head.profile")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(12)
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.18))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: "lightbulb")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(.white)
+                }
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("AI 项目助手")
-                        .font(.headline)
-                        .fontWeight(.semibold)
+                        .font(.title3)
+                        .fontWeight(.bold)
                         .foregroundColor(.white)
                     
-                    Text("可查看项目总结或生成邮件")
+                    Text("智能分析项目进度，生成总结报告")
                         .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.white.opacity(0.9))
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.6))
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.7))
             }
-            .padding(20)
+            .padding(24)
         }
         .background(
             LinearGradient(
-                gradient: Gradient(colors: [Color(hex: "8B5CF6"), Color(hex: "3B82F6")]),
-                startPoint: .leading,
-                endPoint: .trailing
+                gradient: Gradient(colors: [
+                    Color(red: 0.27, green: 0.58, blue: 1.0),
+                    Color(red: 0.10, green: 0.45, blue: 0.98)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
         )
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+        .cornerRadius(20)
+        .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 6)
     }
     
     // MARK: - Helper Methods
@@ -293,126 +361,152 @@ struct FilterTabView: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(isSelected ? .white : .primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(isSelected ? Color.blue : Color(.systemGray5))
-                .cornerRadius(20)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(isSelected ? .white : Color(.secondaryLabel))
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(isSelected ? Color.blue : Color(.systemBackground))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(isSelected ? Color.blue : Color(.systemGray4).opacity(0.7), lineWidth: 1)
+                )
+                .shadow(color: isSelected ? Color.blue.opacity(0.25) : Color.black.opacity(0.03), radius: isSelected ? 6 : 3, x: 0, y: isSelected ? 3 : 2)
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
-struct TimelineTaskView: View {
+struct TimelineTaskCardView: View {
     let task: Task
-    let isLast: Bool
-    let projectColor: String
-    let onTaskTap: () -> Void
+    let timeText: String
+    let showTopConnector: Bool
+    let showBottomConnector: Bool
+    let accentColor: Color
+    let onTap: () -> Void
+    
+    private let dataManager = TaskDataManager.shared
     
     var body: some View {
-        Button(action: onTaskTap) {
-            HStack(alignment: .top, spacing: 16) {
-                // Timeline indicator
-                VStack(spacing: 0) {
-                    Circle()
-                        .fill(task.isCompleted ? Color.green : Color.blue)
-                        .frame(width: 12, height: 12)
-                    
-                    if !isLast {
-                        Rectangle()
-                            .fill(Color(.systemGray4))
-                            .frame(width: 2, height: 80) // 增加高度以适应新内容
-                    }
-                }
+        Button(action: onTap) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(timeText)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .frame(width: 40, alignment: .trailing)
+                    .padding(.top, 14)
                 
-                // Task content - 增强版本：显示title、分类标签、优先级和负责人
+                TimelineIndicatorView(
+                    color: accentColor,
+                    showTop: showTopConnector,
+                    showBottom: showBottomConnector
+                )
+
+                
                 VStack(alignment: .leading, spacing: 12) {
-                    // Title
                     Text(task.title)
-                        .font(.headline)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
                     
-                    // Description (if available)
                     if !task.description.isEmpty {
                         Text(task.description)
-                            .font(.subheadline)
+                            .font(.system(size: 13))
                             .foregroundColor(.secondary)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
+                            .lineLimit(3)
                     }
                     
-                    // Category Tag and Priority
-                    HStack(spacing: 8) {
-                        // Category Tag
-                        HStack(spacing: 4) {
-                            Image(systemName: getCategoryIcon())
-                                .font(.caption2)
-                                .foregroundColor(getCategoryColor())
-                            
-                            Text(getCategoryDisplayName())
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(getCategoryColor().opacity(0.1))
-                        .cornerRadius(8)
-                        
-                        // Priority Tag
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(priorityColor(task.priority))
-                                .frame(width: 6, height: 6)
-                            
-                            Text(priorityDisplayName(task.priority))
-                                .font(.caption2)
-                                .foregroundColor(priorityColor(task.priority))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(priorityColor(task.priority).opacity(0.1))
-                        .cornerRadius(8)
-                        
+                    HStack(spacing: 10) {
+                        categoryChip
+                        priorityChip
                         Spacer()
-                    }
-                    
-                    // Assignee and Date
-                    HStack {
-                        Image(systemName: "person.circle")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        if let assigneeId = task.assigneeId {
-                            Text("负责人: \(getAssigneeName(assigneeId))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("未分配")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // 创建时间
-                        Text(formatCreatedDate(task.createdAt))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        assigneeView
                     }
                 }
-                
-                Spacer()
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(.systemBackground))
+                )
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6)
             }
-            .padding(16)
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
-        .buttonStyle(PlainButtonStyle())
-        .padding(.bottom, isLast ? 0 : 16)
+        .buttonStyle(.plain)
+    }
+    
+    private var categoryChip: some View {
+        let info = categoryInfo
+        return HStack(spacing: 6) {
+            Image(systemName: info.icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(info.color)
+            Text(info.name)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(info.color)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(info.color.opacity(0.12))
+        .cornerRadius(14)
+    }
+    
+    private var priorityChip: some View {
+        let color = priorityColor(task.priority)
+        return HStack(spacing: 6) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(priorityDisplayName(task.priority))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.12))
+        .cornerRadius(14)
+    }
+    
+    @ViewBuilder
+    private var assigneeView: some View {
+        if let info = assigneeInfo {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(info.color)
+                    .frame(width: 28, height: 28)
+                    .overlay(
+                        Text(info.initials)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.white)
+                    )
+                Text(info.name)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.primary)
+            }
+        } else {
+            Text("未分配")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var categoryInfo: (name: String, icon: String, color: Color) {
+        if task.category == .custom,
+           let customCategoryId = task.customCategoryId,
+           let customCategory = dataManager.getCustomCategory(byId: customCategoryId) {
+            return (
+                name: customCategory.name,
+                icon: customCategory.icon,
+                color: Color(hex: customCategory.color)
+            )
+        } else {
+            return (
+                name: task.category.displayName,
+                icon: task.category.iconName,
+                color: defaultCategoryColor(task.category)
+            )
+        }
     }
     
     private func priorityDisplayName(_ priority: TaskPriority) -> String {
@@ -426,104 +520,73 @@ struct TimelineTaskView: View {
     
     private func priorityColor(_ priority: TaskPriority) -> Color {
         switch priority {
-        case .low: return .green
-        case .medium: return .orange
-        case .high: return .red
-        case .urgent: return .purple
+        case .low: return Color(red: 0.27, green: 0.76, blue: 0.46)
+        case .medium: return Color(red: 0.98, green: 0.64, blue: 0.14)
+        case .high: return Color(red: 0.94, green: 0.31, blue: 0.31)
+        case .urgent: return Color(red: 0.58, green: 0.34, blue: 0.95)
         }
     }
     
-    /// 获取负责人姓名
-    private func getAssigneeName(_ assigneeId: UUID) -> String {
-        // 为演示目的，根据固定的UUID返回对应的用户名
-        // 在实际应用中，应该从用户数据库或缓存中获取用户名
+    private var assigneeInfo: (name: String, initials: String, color: Color)? {
+        guard let assigneeId = task.assigneeId else {
+            return nil
+        }
+        
         let idString = assigneeId.uuidString
-        
-        // 匹配我们在TaskDataManager中创建的固定UUID
         if idString == "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA" {
-            return "Jim"
+            return ("Jim", "J", Color(red: 0.29, green: 0.46, blue: 0.98))
         } else if idString == "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB" {
-            return "Clare"
+            return ("Clare", "C", Color(red: 0.98, green: 0.41, blue: 0.56))
         } else {
-            return "未知用户"
+            return ("成员", "M", Color(.systemGray4))
         }
     }
     
-    /// 格式化创建日期
-    private func formatCreatedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM/dd HH:mm"
-        return formatter.string(from: date)
-    }
-    
-    /// 获取分类显示名称
-    private func getCategoryDisplayName() -> String {
-        let dataManager = TaskDataManager.shared
-        
-        if task.category == .custom, let customCategoryId = task.customCategoryId,
-           let customCategory = dataManager.getCustomCategory(byId: customCategoryId) {
-            return customCategory.name
-        } else {
-            return task.category.displayName
-        }
-    }
-    
-    /// 获取分类图标
-    private func getCategoryIcon() -> String {
-        let dataManager = TaskDataManager.shared
-        
-        if task.category == .custom, let customCategoryId = task.customCategoryId,
-           let customCategory = dataManager.getCustomCategory(byId: customCategoryId) {
-            return customCategory.icon
-        } else {
-            return getCategoryIconForDefault(task.category)
-        }
-    }
-    
-    /// 获取分类颜色
-    private func getCategoryColor() -> Color {
-        let dataManager = TaskDataManager.shared
-        
-        if task.category == .custom, let customCategoryId = task.customCategoryId,
-           let customCategory = dataManager.getCustomCategory(byId: customCategoryId) {
-            return Color(hex: customCategory.color)
-        } else {
-            return getCategoryColorForDefault(task.category)
-        }
-    }
-    
-    /// 获取默认分类图标
-    private func getCategoryIconForDefault(_ category: TaskCategory) -> String {
+    private func defaultCategoryColor(_ category: TaskCategory) -> Color {
         switch category {
-        case .meeting: return "person.2"
-        case .review: return "checkmark.circle"
-        case .development: return "hammer"
-        case .design: return "paintbrush"
-        case .communication: return "message"
-        case .presentation: return "presentation"
-        case .milestone: return "flag"
-        case .planning: return "calendar"
-        case .testing: return "testtube.2"
-        case .documentation: return "doc.text"
-        case .custom: return "folder"
+        case .meeting: return Color(red: 0.30, green: 0.58, blue: 1.0)
+        case .review: return Color(red: 0.27, green: 0.76, blue: 0.46)
+        case .development: return Color(red: 1.0, green: 0.58, blue: 0.18)
+        case .design: return Color(red: 0.83, green: 0.52, blue: 1.0)
+        case .communication: return Color(red: 0.36, green: 0.74, blue: 0.99)
+        case .presentation: return Color(red: 0.99, green: 0.46, blue: 0.46)
+        case .milestone: return Color(red: 1.0, green: 0.78, blue: 0.26)
+        case .planning: return Color(red: 0.40, green: 0.60, blue: 1.0)
+        case .testing: return Color(red: 0.98, green: 0.63, blue: 0.15)
+        case .documentation: return Color(red: 0.60, green: 0.62, blue: 0.68)
+        case .custom: return Color(.systemGray)
         }
     }
+}
+
+struct TimelineIndicatorView: View {
+    let color: Color
+    let showTop: Bool
+    let showBottom: Bool
     
-    /// 获取默认分类颜色
-    private func getCategoryColorForDefault(_ category: TaskCategory) -> Color {
-        switch category {
-        case .meeting: return Color.blue
-        case .review: return Color.green
-        case .development: return Color.orange
-        case .design: return Color.purple
-        case .communication: return Color.cyan
-        case .presentation: return Color.red
-        case .milestone: return Color.yellow
-        case .planning: return Color.indigo
-        case .testing: return Color.pink
-        case .documentation: return Color.brown
-        case .custom: return Color.gray
+    var body: some View {
+        VStack(spacing: 0) {
+            if showTop {
+                Rectangle()
+                    .fill(color.opacity(0.3))
+                    .frame(width: 1.5)
+                    .frame(maxHeight: .infinity)
+            }
+            
+            Circle()
+                .strokeBorder(color, lineWidth: 3)
+                .background(Circle().fill(Color(.systemBackground)))
+                .frame(width: 14, height: 14)
+                .padding(.vertical, 6)
+            
+            if showBottom {
+                Rectangle()
+                    .fill(color.opacity(0.45))
+                    .frame(width: 1.5)
+                    .frame(maxHeight: .infinity)
+            }
         }
+        .frame(width: 16)
     }
 }
 

@@ -34,14 +34,8 @@ struct DetailedStatisticsView: View {
                         // Overview Statistics Cards
                         overviewStatsSection
                         
-                        // Time Distribution Chart
-                        timeDistributionSection
-                        
-                        // Projects Time Investment
+                        // Projects Time Investment (时间线)
                         projectsTimeSection
-                        
-                        // Tasks Breakdown by Project
-                        tasksBreakdownSection
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
@@ -51,14 +45,6 @@ struct DetailedStatisticsView: View {
             .background(Color.neuBackground)
             .navigationTitle("详细统计")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                    .foregroundColor(.neuTextSecondary)
-                }
-            }
         }
     }
     
@@ -150,62 +136,12 @@ struct DetailedStatisticsView: View {
         }
     }
     
-    // MARK: - Time Distribution Chart
-    private var timeDistributionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("时间分布")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.neuTextPrimary)
-            
-            VStack(spacing: 16) {
-                // Simple bar chart representation
-                let distributionData = getTimeDistributionData()
-                
-                if distributionData.isEmpty {
-                    emptyChartPlaceholder
-                } else {
-                    ForEach(distributionData, id: \.date) { data in
-                        HStack(spacing: 12) {
-                            Text(formatChartDate(data.date))
-                                .font(.caption)
-                                .foregroundColor(.neuTextSecondary)
-                                .frame(width: 50, alignment: .leading)
-                            
-                            GeometryReader { geometry in
-                                HStack(spacing: 0) {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [Color.neuAccent, Color.neuAccent.opacity(0.7)],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                        .frame(width: geometry.size.width * CGFloat(data.hours / getMaxHours()))
-                                        .frame(height: 24)
-                                }
-                            }
-                            .frame(height: 24)
-                            
-                            Text(String(format: "%.1fh", data.hours))
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.neuTextPrimary)
-                                .frame(width: 40, alignment: .trailing)
-                        }
-                    }
-                }
-            }
-            .padding(16)
-            .neumorphicCard(cornerRadius: 16, padding: 0)
-        }
-    }
+
     
     // MARK: - Projects Time Section
     private var projectsTimeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("项目投入时间")
+            Text("时间线")
                 .font(.headline)
                 .fontWeight(.semibold)
                 .foregroundColor(.neuTextPrimary)
@@ -229,47 +165,9 @@ struct DetailedStatisticsView: View {
         }
     }
     
-    // MARK: - Tasks Breakdown Section
-    private var tasksBreakdownSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("任务明细")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.neuTextPrimary)
-            
-            let tasksData = getTasksBreakdownData()
-            
-            if tasksData.isEmpty {
-                emptyTasksPlaceholder
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(tasksData, id: \.task.id) { data in
-                        TaskBreakdownRow(
-                            task: data.task,
-                            project: data.project,
-                            hours: data.hours
-                        )
-                    }
-                }
-            }
-        }
-    }
+
     
     // MARK: - Empty States
-    private var emptyChartPlaceholder: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "chart.bar.fill")
-                .font(.system(size: 32))
-                .foregroundColor(.neuTextSecondary)
-            
-            Text("暂无数据")
-                .font(.subheadline)
-                .foregroundColor(.neuTextSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
-    }
-    
     private var emptyProjectsPlaceholder: some View {
         VStack(spacing: 12) {
             Image(systemName: "folder.badge.questionmark")
@@ -277,21 +175,6 @@ struct DetailedStatisticsView: View {
                 .foregroundColor(.neuTextSecondary)
             
             Text("该时间段内无项目数据")
-                .font(.subheadline)
-                .foregroundColor(.neuTextSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
-        .neumorphicInset(cornerRadius: 16)
-    }
-    
-    private var emptyTasksPlaceholder: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "checklist")
-                .font(.system(size: 32))
-                .foregroundColor(.neuTextSecondary)
-            
-            Text("该时间段内无任务数据")
                 .font(.subheadline)
                 .foregroundColor(.neuTextSecondary)
         }
@@ -382,92 +265,7 @@ struct DetailedStatisticsView: View {
         }
     }
     
-    private func getTimeDistributionData() -> [TimeDistributionData] {
-        let calendar = Calendar.current
-        var data: [TimeDistributionData] = []
-        
-        switch selectedTimeRange {
-        case .day:
-            // Show hourly distribution for the day
-            for hour in 0..<24 {
-                var components = calendar.dateComponents([.year, .month, .day], from: selectedDate)
-                components.hour = hour
-                components.minute = 0
-                components.second = 0
-                
-                if let hourDate = calendar.date(from: components) {
-                    let tasks = getFilteredTasks().filter { task in
-                        guard let startTime = task.startTime else { return false }
-                        return calendar.component(.hour, from: startTime) == hour
-                    }
-                    let hours = tasks.reduce(0.0) { $0 + ($1.actualHours ?? 0) }
-                    if hours > 0 {
-                        data.append(TimeDistributionData(date: hourDate, hours: hours))
-                    }
-                }
-            }
-            
-        case .week:
-            // Show daily distribution for the week
-            guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else {
-                return []
-            }
-            
-            var currentDate = weekInterval.start
-            for _ in 0..<7 {
-                let tasks = dataManager.allTasks.filter { task in
-                    let createdAt = task.createdAt
-                    return calendar.isDate(createdAt, inSameDayAs: currentDate)
-                }
-                let hours = tasks.reduce(0.0) { $0 + ($1.actualHours ?? 0) }
-                data.append(TimeDistributionData(date: currentDate, hours: hours))
-                currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
-            }
-            
-        case .month:
-            // Show weekly distribution for the month
-            guard let range = calendar.range(of: .weekOfMonth, in: .month, for: selectedDate) else {
-                return []
-            }
-            
-            for week in range {
-                var components = calendar.dateComponents([.year, .month], from: selectedDate)
-                components.weekOfMonth = week
-                
-                if let weekDate = calendar.date(from: components) {
-                    let tasks = dataManager.allTasks.filter { task in
-                        let createdAt = task.createdAt
-                        return calendar.isDate(createdAt, equalTo: weekDate, toGranularity: .weekOfMonth)
-                    }
-                    let hours = tasks.reduce(0.0) { $0 + ($1.actualHours ?? 0) }
-                    data.append(TimeDistributionData(date: weekDate, hours: hours))
-                }
-            }
-        }
-        
-        return data
-    }
-    
-    private func getMaxHours() -> Double {
-        let data = getTimeDistributionData()
-        return data.map { $0.hours }.max() ?? 1.0
-    }
-    
-    private func formatChartDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        
-        switch selectedTimeRange {
-        case .day:
-            formatter.dateFormat = "HH:mm"
-        case .week:
-            formatter.dateFormat = "E"
-        case .month:
-            formatter.dateFormat = "第W周"
-        }
-        
-        return formatter.string(from: date)
-    }
+
     
     private func getProjectsTimeData() -> [ProjectTimeData] {
         let tasks = getFilteredTasks()
@@ -494,34 +292,14 @@ struct DetailedStatisticsView: View {
             .sorted { $0.hours > $1.hours }
     }
     
-    private func getTasksBreakdownData() -> [TaskBreakdownData] {
-        let tasks = getFilteredTasks()
-            .filter { ($0.actualHours ?? 0) > 0 }
-            .sorted { ($0.actualHours ?? 0) > ($1.actualHours ?? 0) }
-        
-        return tasks.map { task in
-            let project = task.projectId.flatMap { dataManager.getProject(byId: $0) }
-            return TaskBreakdownData(task: task, project: project, hours: task.actualHours ?? 0)
-        }
-    }
+
 }
 
 // MARK: - Data Models
-struct TimeDistributionData {
-    let date: Date
-    let hours: Double
-}
-
 struct ProjectTimeData {
     let project: Project
     let hours: Double
     let taskCount: Int
-}
-
-struct TaskBreakdownData {
-    let task: Task
-    let project: Project?
-    let hours: Double
 }
 
 // MARK: - Stat Card Component
@@ -623,73 +401,7 @@ struct ProjectTimeCard: View {
     }
 }
 
-// MARK: - Task Breakdown Row Component
-struct TaskBreakdownRow: View {
-    let task: Task
-    let project: Project?
-    let hours: Double
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Priority indicator
-            RoundedRectangle(cornerRadius: 3)
-                .fill(priorityColor)
-                .frame(width: 4, height: 48)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(task.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.neuTextPrimary)
-                    .lineLimit(1)
-                
-                if let project = project {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(Color(hex: project.color))
-                            .frame(width: 8, height: 8)
-                        
-                        Text(project.name)
-                            .font(.caption)
-                            .foregroundColor(.neuTextSecondary)
-                    }
-                }
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(String(format: "%.1fh", hours))
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.neuAccent)
-                
-                if task.isCompleted {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
-            }
-        }
-        .padding(12)
-        .background(Color.neuBackground)
-        .cornerRadius(12)
-        .neumorphicCard(cornerRadius: 12, padding: 0)
-    }
-    
-    private var priorityColor: Color {
-        switch task.priority {
-        case .urgent:
-            return .red
-        case .high:
-            return .orange
-        case .medium:
-            return .neuAccent
-        case .low:
-            return .green
-        }
-    }
-}
+
 
 #Preview {
     DetailedStatisticsView()

@@ -262,16 +262,6 @@ extension ProfileView {
                         selection: $userManager.darkModePreference
                     )
                     
-                    settingsDivider()
-                    
-                    // 语言设置
-                    settingsPickerRow(
-                        icon: "globe",
-                        title: "语言",
-                        subtitle: userManager.selectedLanguage.displayName,
-                        options: Language.allCases,
-                        selection: $userManager.selectedLanguage
-                    )
                 }
             }
             

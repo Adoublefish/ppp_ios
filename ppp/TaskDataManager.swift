@@ -552,8 +552,8 @@ class TaskDataManager: ObservableObject {
         let sampleTasks = [
             // id: 1 - meeting任务，有时间段，负责人Jim，创建时间较早
             Task(
-                title: "meeting",
-                description: "eero meeting",
+                title: "eero项目周会",
+                description: "讨论eero项目本周进展和下周计划",
                 startTime: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: today)!,
                 endTime: calendar.date(bySettingHour: 13, minute: 0, second: 0, of: today)!,
                 priority: .medium,
@@ -561,19 +561,21 @@ class TaskDataManager: ObservableObject {
                 customCategoryId: nil,  // 使用默认类别，无需自定义类别ID
                 createdAt: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: -1, to: today)!)!,
                 projectId: eeroProject.id,
-                assigneeId: jimId
+                assigneeId: jimId,
+                estimatedHours: nil  // 会议任务通常不需要预估工时
             ),
             // id: 2 - email send任务，只有截止时间，负责人Clare，创建时间较晚
             Task(
-                title: "email send",
-                description: "send email for xxx",
+                title: "发送项目进度邮件",
+                description: "向客户发送eero项目本周进度报告",
                 dueDate: calendar.date(byAdding: .day, value: 4, to: today)!, // 2025-08-08相当于today+4天
                 priority: .medium,
                 category: .communication,
                 customCategoryId: nil,  // 使用默认类别，无需自定义类别ID
                 createdAt: calendar.date(bySettingHour: 13, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: -1, to: today)!)!,
                 projectId: eeroProject.id,
-                assigneeId: clareId
+                assigneeId: clareId,
+                estimatedHours: 2.0  // 截止任务需要预估工时
             )
         ]
         

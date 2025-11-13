@@ -56,12 +56,6 @@ class UserDataManager: ObservableObject {
         }
     }
     
-    @Published var selectedLanguage: Language {
-        didSet {
-            UserDefaults.standard.set(selectedLanguage.rawValue, forKey: "selectedLanguage")
-        }
-    }
-    
     @Published var cloudBackupEnabled: Bool {
         didSet {
             UserDefaults.standard.set(cloudBackupEnabled, forKey: "cloudBackupEnabled")
@@ -81,9 +75,6 @@ class UserDataManager: ObservableObject {
         
         let darkModeString = UserDefaults.standard.string(forKey: "darkModePreference") ?? DarkModePreference.automatic.rawValue
         self.darkModePreference = DarkModePreference(rawValue: darkModeString) ?? .automatic
-        
-        let languageString = UserDefaults.standard.string(forKey: "selectedLanguage") ?? Language.chinese.rawValue
-        self.selectedLanguage = Language(rawValue: languageString) ?? .chinese
         
         // 如果是首次启动，生成初始头像字母
         if UserDefaults.standard.object(forKey: "userInitials") == nil {
@@ -143,7 +134,6 @@ class UserDataManager: ObservableObject {
         calendarSyncEnabled = true
         aiFeatureEnabled = true
         darkModePreference = .automatic
-        selectedLanguage = .chinese
         cloudBackupEnabled = true
     }
     
