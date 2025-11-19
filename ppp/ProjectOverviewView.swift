@@ -11,6 +11,7 @@ struct ProjectOverviewView: View {
     @State private var selectedFilter = "全部"
     @State private var searchText = ""
     @ObservedObject private var dataManager = TaskDataManager.shared
+    @State private var showingCreateProject = false
     
     private let filters = ["全部", "进行中", "已完成", "规划中"]
     
@@ -122,6 +123,9 @@ struct ProjectOverviewView: View {
             .background(Color(.systemBackground))
         }
         .background(Color(.systemBackground))
+        .sheet(isPresented: $showingCreateProject) {
+            CreateProjectView()
+        }
     }
     
     private func getTeamForProject(_ project: Project) -> Team {
@@ -144,19 +148,36 @@ struct ProjectOverviewView: View {
             
             Spacer()
             
-            Button {
-                // Search action placeholder
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.primary)
-                    .padding(12)
-                    .background(
-                        Circle()
-                            .fill(Color(.systemGray6))
-                    )
+            HStack(spacing: 10) {
+                Button {
+                    // Search action placeholder
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.primary)
+                        .padding(12)
+                        .background(
+                            Circle()
+                                .fill(Color(.systemGray6))
+                        )
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    showingCreateProject = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(12)
+                        .background(
+                            Circle()
+                                .fill(Color.blue)
+                        )
+                        .shadow(color: Color.blue.opacity(0.25), radius: 6, x: 0, y: 3)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
     

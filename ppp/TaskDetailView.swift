@@ -236,10 +236,10 @@ struct TaskDetailView: View {
             HStack(spacing: 16) {
                 Circle()
                     .fill(priorityColor(currentTask.priority))
-                    .frame(width: 56, height: 56)
+                    .frame(width: 48, height: 48)
                     .overlay(
                         Text(priorityDisplayName(currentTask.priority))
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundColor(.white)
                     )
                 
@@ -260,44 +260,51 @@ struct TaskDetailView: View {
                 Spacer()
             }
             
-            HStack(spacing: 12) {
-                infoBadge(
-                    icon: "person.crop.circle",
-                    title: "Author",
-                    value: assigneeDisplayName
-                )
-                
-                infoBadge(
-                    icon: "calendar",
-                    title: "Due",
-                    value: deadlineDisplayText,
-                    valueColor: currentTask.dueDate.map(getDueDateColor) ?? .secondary
-                )
-            }
-            
-            Button(action: toggleCompletion) {
-                HStack(spacing: 12) {
-                    Image(systemName: currentTask.isCompleted ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .foregroundColor(currentTask.isCompleted ? .green : .secondary)
-                    
-                    Text(currentTask.isCompleted ? "已完成" : "Mark as Complete")
-                        .font(.headline)
-                        .fontWeight(.medium)
-                        .foregroundColor(currentTask.isCompleted ? .green : .primary)
-                    
-                    Spacer()
+            VStack(spacing: 16) {
+                Button(action: toggleCompletion) {
+                    HStack(spacing: 12) {
+                        Image(systemName: currentTask.isCompleted ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .foregroundColor(currentTask.isCompleted ? .green : .secondary)
+                        
+                        Text(currentTask.isCompleted ? "已完成" : "Mark as Complete")
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .foregroundColor(currentTask.isCompleted ? .green : .primary)
+                        
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
                 }
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
+                
+                HStack(spacing: 12) {
+                    statusControlButton(
+                        title: "截止日期",
+                        value: hasDueDate ? deadlineDetailText : "未设置",
+                        icon: "calendar",
+                        valueColor: hasDueDate ? getDueDateColor(currentTask.dueDate ?? Date()) : .secondary,
+                        action: { showingDatePicker = true }
+                    )
+                    
+                    statusControlButton(
+                        title: "负责人",
+                        value: assigneeDisplayName,
+                        icon: "person",
+                        valueColor: assigneeDisplayName == "未分配" ? .secondary : .primary,
+                        action: { showingAssigneePicker = true }
+                    )
+                }
             }
-            
-            Divider()
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+            )
         }
         .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
-        .background(Color(.systemBackground))
+        .padding(.top, 20)
     }
     
     // MARK: - Original Header Section (kept for compatibility)
@@ -355,37 +362,12 @@ struct TaskDetailView: View {
                 .fontWeight(.semibold)
             
             VStack(spacing: 0) {
-                detailRow(title: "任务标题") {
-                    Text(currentTask.title)
-                        .font(.body)
-                        .foregroundColor(.primary)
-                }
-                
-                dividerRow
-                
                 detailRow(title: "任务描述", alignLeading: true) {
                     Text(descriptionDisplayText)
                         .font(.body)
                         .foregroundColor(descriptionDisplayText == "暂无描述" ? .secondary : .primary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
-                }
-                
-                dividerRow
-                
-                detailRow(title: "截止时间") {
-                    Text(deadlineDetailText)
-                        .font(.body)
-                        .foregroundColor(deadlineDisplayColor)
-                        .multilineTextAlignment(.trailing)
-                }
-                
-                dividerRow
-                
-                detailRow(title: "负责人") {
-                    Text(assigneeDisplayName)
-                        .font(.body)
-                        .foregroundColor(assigneeDisplayName == "未分配" ? .secondary : .primary)
                 }
                 
                 dividerRow
@@ -1815,38 +1797,6 @@ struct TaskDetailView: View {
             .cornerRadius(12)
     }
     
-    private func infoBadge(icon: String, title: String, value: String, valueColor: Color = .primary) -> some View {
-        HStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(Color(.systemBackground))
-                    .frame(width: 32, height: 32)
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.softTeal)
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(value)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(valueColor)
-            }
-            
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.systemGray6))
-        )
-    }
-    
     @ViewBuilder
     private func detailRow<Content: View>(title: String, alignLeading: Bool = false, @ViewBuilder content: () -> Content) -> some View {
         HStack(alignment: .center, spacing: 12) {
@@ -1866,6 +1816,39 @@ struct TaskDetailView: View {
     private var dividerRow: some View {
         Divider()
             .padding(.leading, 0)
+    }
+    
+    private func statusControlButton(title: String, value: String, icon: String, valueColor: Color = .primary, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.secondary)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(value)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(valueColor)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.secondary.opacity(0.7))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.systemGray6))
+            )
+        }
+        .buttonStyle(.plain)
     }
     
     private func categoryChip(text: String) -> some View {

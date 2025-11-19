@@ -14,7 +14,7 @@ struct MainTabView: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                Color(.systemGroupedBackground)
+                Color.backgroundPrimary
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {

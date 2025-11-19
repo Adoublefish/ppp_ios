@@ -56,8 +56,10 @@ struct TaskInputView: View {
     @State private var showingTeamMemberManagement = false
     @State private var showingCategoryManagement = false
     @State private var showingProjectPicker = false
+    @State private var showingProjectCreation = false
     @State private var showingAssigneePicker = false
     @State private var showingCategoryPicker = false
+    @State private var showingDueDateSheet = false
     
     // Enhanced task input variables
     @State private var taskType: TaskType = .deadline
@@ -70,13 +72,15 @@ struct TaskInputView: View {
     @State private var selectedCategory: TaskCategory = .development
     @State private var selectedCustomCategory: CustomTaskCategory?
     @State private var selectedPriority: TaskPriority? = nil
+    @State private var estimatedHours: Double = 0.5
     @State private var recurrenceRule: RecurrenceRule = .none
     @State private var showingSuccessAlert = false
     @State private var selectedProjectId: UUID? = nil
     @State private var showAdvancedInputs = false
-    @State private var showingCalendar = false
     @State private var showingStartTimePicker = false
     @State private var showingEndTimePicker = false
+    @State private var pendingDueDate = Date()
+    @State private var pendingEstimatedHours: Double = 0.5
     
     // 团队任务创建支持
     let team: Team?
@@ -121,7 +125,7 @@ struct TaskInputView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.systemBackground))
+                .fill(Color.backgroundSecondary)
                 .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 4)
         )
     }
@@ -139,7 +143,7 @@ struct TaskInputView: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isSelected ? Color.blue : Color(.systemGray6))
+                    .fill(isSelected ? Color.accentPrimary : Color.backgroundSecondary)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -154,14 +158,14 @@ struct TaskInputView: View {
             HStack {
                 Text(title)
                     .font(.system(size: 15, weight: highlight ? .semibold : .regular))
-                    .foregroundColor(highlight ? .blue : .primary)
+                    .foregroundColor(highlight ? .accentPrimary : .textPrimary)
                 Spacer()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(.systemGray6))
+                    .fill(Color.backgroundSecondary)
             )
         }
         .buttonStyle(.plain)
@@ -189,10 +193,10 @@ struct TaskInputView: View {
                     .padding(.top, 16)
                     .padding(.bottom, 24)
                 }
-                .background(Color(.systemGroupedBackground))
+                .background(Color.backgroundPrimary)
             }
         }
-        .background(Color(.systemBackground))
+        .background(Color.backgroundPrimary)
         .sheet(isPresented: $showingImagePicker) {
             ImagePicker(selectedImage: $selectedImage) { image in
                 if let image = image {
@@ -241,6 +245,29 @@ struct TaskInputView: View {
         .sheet(isPresented: $showingCategoryPicker) {
             categoryPickerSheet
         }
+        .sheet(isPresented: $showingDueDateSheet) {
+            DueDateEditorSheet(
+                initialDate: pendingDueDate,
+                initialEstimatedHours: pendingEstimatedHours,
+                onSave: { newDate, hours in
+                    dueDate = newDate
+                    estimatedHours = hours
+                    hasDueDate = true
+                },
+                onClear: {
+                    hasDueDate = false
+                    estimatedHours = 0.5
+                }
+            )
+            .presentationDetents([.fraction(0.55), .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showingProjectCreation) {
+            CreateProjectView { project in
+                selectedProjectId = project.id
+                showingProjectPicker = false
+            }
+        }
         .sheet(isPresented: $showingOCREditor) {
             OCREditorView(
                 ocrResult: ocrResult,
@@ -262,11 +289,6 @@ struct TaskInputView: View {
             }
         } message: {
             Text("任务已成功创建并添加到项目中")
-        }
-        .sheet(isPresented: $showingCalendar) {
-            CustomCalendarPicker(selectedDate: $dueDate, includeTime: true)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingStartTimePicker) {
             CustomCalendarPicker(selectedDate: $startTime, includeTime: true)
@@ -353,15 +375,15 @@ struct TaskInputView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "camera.viewfinder")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.accentPrimary)
                         Text("拍照识别任务信息")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.textPrimary)
                     }
                     
                     Text("拍摄或选择带文字的图片，自动识别任务标题与描述。")
                         .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.textSecondary)
                     
                     HStack(spacing: 12) {
                         Button {
@@ -371,7 +393,7 @@ struct TaskInputView: View {
                                 .font(.system(size: 15, weight: .semibold))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(Color.blue)
+                                .background(Color.accentPrimary)
                                 .foregroundColor(.white)
                                 .cornerRadius(14)
                         }
@@ -386,7 +408,7 @@ struct TaskInputView: View {
                                 .padding(.vertical, 12)
                                 .background(
                                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1.5)
+                                        .stroke(Color.accentPrimary.opacity(0.3), lineWidth: 1.5)
                                 )
                         }
                         .buttonStyle(.plain)
@@ -411,8 +433,8 @@ struct TaskInputView: View {
                                         .font(.system(size: 13, weight: .semibold))
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 8)
-                                        .background(Color.blue.opacity(0.1))
-                                        .foregroundColor(.blue)
+                                        .background(Color.accentPrimary.opacity(0.1))
+                                        .foregroundColor(.accentPrimary)
                                         .cornerRadius(10)
                                 }
                                 .buttonStyle(.plain)
@@ -458,7 +480,7 @@ struct TaskInputView: View {
                                 .scaleEffect(0.9, anchor: .center)
                             Text("正在识别图片内容…")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.textSecondary)
                         }
                     }
                     
@@ -466,15 +488,15 @@ struct TaskInputView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("识别内容")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.primary)
+                                .foregroundColor(.textPrimary)
                             
                             Text(extractedText)
                                 .font(.system(size: 13))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.textSecondary)
                                 .padding(12)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(Color(.systemGray6))
+                                        .fill(Color.backgroundSecondary)
                                 )
                             
                             if let result = ocrResult {
@@ -484,19 +506,19 @@ struct TaskInputView: View {
                                             .foregroundColor(.purple)
                                         Text("智能提取建议")
                                             .font(.system(size: 13, weight: .semibold))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(.textSecondary)
                                     }
                                     
                                     if !result.extractedInfo.title.isEmpty {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("标题建议")
                                                 .font(.caption2)
-                                                .foregroundColor(.secondary)
+                                                .foregroundColor(.textSecondary)
                                             Text(result.extractedInfo.title)
                                                 .font(.system(size: 13, weight: .medium))
-                                                .foregroundColor(.primary)
+                                                .foregroundColor(.textPrimary)
                                                 .padding(10)
-                                                .background(Color.blue.opacity(0.08))
+                                                .background(Color.accentPrimary.opacity(0.08))
                                                 .cornerRadius(10)
                                         }
                                     }
@@ -505,10 +527,10 @@ struct TaskInputView: View {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("描述建议")
                                                 .font(.caption2)
-                                                .foregroundColor(.secondary)
+                                                .foregroundColor(.textSecondary)
                                             Text(result.extractedInfo.description)
                                                 .font(.system(size: 13))
-                                                .foregroundColor(.primary)
+                                                .foregroundColor(.textPrimary)
                                                 .padding(10)
                                                 .background(Color.orange.opacity(0.08))
                                                 .cornerRadius(10)
@@ -541,7 +563,7 @@ struct TaskInputView: View {
                                                 .font(.system(size: 13, weight: .semibold))
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 8)
-                                                .background(Color.blue)
+                                                .background(Color.accentPrimary)
                                                 .foregroundColor(.white)
                                                 .cornerRadius(10)
                                         }
@@ -592,7 +614,7 @@ struct TaskInputView: View {
                 .padding(.vertical, 14)
                 .background(
                     LinearGradient(
-                        gradient: Gradient(colors: [Color.blue, Color.purple]),
+                        gradient: Gradient(colors: [Color.accentPrimary, Color.purple]),
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -615,7 +637,7 @@ struct TaskInputView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(Color.blue)
+                .background(Color.accentPrimary)
                 .cornerRadius(16)
             }
             .buttonStyle(.plain)
@@ -625,7 +647,7 @@ struct TaskInputView: View {
             if !canCreateTask {
                 Text("请输入任务标题后再创建任务")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -638,7 +660,7 @@ struct TaskInputView: View {
                 HStack(spacing: 6) {
                     Text("任务标题")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.textPrimary)
                     Text("*")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.red)
@@ -654,15 +676,16 @@ struct TaskInputView: View {
                 
                 TextField("输入任务或项目标题", text: $projectTitle)
                     .font(.system(size: 16))
+                    .foregroundColor(.textPrimary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color(.systemGray6))
+                            .fill(Color.backgroundSecondary)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(projectTitle.isEmpty ? Color(.systemGray4) : Color.blue.opacity(0.35), lineWidth: 1)
+                            .stroke(projectTitle.isEmpty ? Color(.systemGray4) : Color.accentPrimary.opacity(0.35), lineWidth: 1)
                     )
                     .onChange(of: projectTitle) { _, newValue in
                         if newValue.count > 50 {
@@ -675,30 +698,21 @@ struct TaskInputView: View {
     
     private var dueDateCard: some View {
         sectionCard {
-            HStack {
-                Text("Due Date")
+            HStack(spacing: 16) {
+                Text("截止日期")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.textPrimary)
                 
                 Spacer()
                 
-                Toggle("", isOn: $hasDueDate)
-                    .toggleStyle(SwitchToggleStyle(tint: .blue))
-            }
-            
-            if hasDueDate {
-                Divider()
-                    .padding(.vertical, 12)
-                
-                HStack(spacing: 12) {
-                    dateSelectionButton(title: formatDateOnly(dueDate), highlight: true) {
-                        showingCalendar = true
-                    }
-                    
-                    dateSelectionButton(title: formatTimeOnly(dueDate)) {
-                        showingCalendar = true
-                    }
+                Button {
+                    pendingDueDate = hasDueDate ? dueDate : Date()
+                    pendingEstimatedHours = estimatedHours
+                    showingDueDateSheet = true
+                } label: {
+                    dueDateSummaryView
                 }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -708,12 +722,12 @@ struct TaskInputView: View {
             HStack {
                 Text("Time Range")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.textPrimary)
                 
                 Spacer()
                 
                 Toggle("", isOn: $hasTimeRange)
-                    .toggleStyle(SwitchToggleStyle(tint: .blue))
+                    .toggleStyle(SwitchToggleStyle(tint: .accentPrimary))
             }
             
             if hasTimeRange {
@@ -724,7 +738,7 @@ struct TaskInputView: View {
                     HStack {
                         Text("开始时间")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.textSecondary)
                         Spacer()
                     }
                     
@@ -740,7 +754,7 @@ struct TaskInputView: View {
                     HStack {
                         Text("结束时间")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.textSecondary)
                         Spacer()
                     }
                     
@@ -766,18 +780,18 @@ struct TaskInputView: View {
             HStack(spacing: 10) {
                 Image(systemName: showAdvancedInputs ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.accentPrimary)
                 
                 Text(showAdvancedInputs ? "收起高级选项" : "展开高级选项")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.accentPrimary)
                 
                 Spacer()
                 
                 if !showAdvancedInputs {
                     Text("描述、分类、负责人…")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.textSecondary)
                 }
             }
             .padding(.horizontal, 18)
@@ -785,7 +799,7 @@ struct TaskInputView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.blue.opacity(0.12))
+                    .fill(Color.accentPrimary.opacity(0.12))
             )
         }
         .buttonStyle(.plain)
@@ -805,7 +819,7 @@ struct TaskInputView: View {
             HStack {
                 Text("任务描述")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.textPrimary)
                 Spacer()
                 if !projectDescription.isEmpty {
                     Text("\(projectDescription.count)/500")
@@ -816,10 +830,11 @@ struct TaskInputView: View {
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(.systemGray6))
+                    .fill(Color.backgroundSecondary)
 
                 TextEditor(text: $projectDescription)
                     .font(.system(size: 15))
+                    .foregroundColor(.textPrimary)
                     .padding(12)
                     .background(Color.clear)
                     .frame(minHeight: 120)
@@ -849,11 +864,11 @@ struct TaskInputView: View {
             HStack {
                 Text("分类")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.textPrimary)
                 Spacer()
                 Button("管理分类") { showingCategoryManagement = true }
                     .font(.caption)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.accentPrimary)
             }
 
             Button { showingCategoryPicker = true } label: {
@@ -864,28 +879,61 @@ struct TaskInputView: View {
                             .foregroundColor(Color(hex: custom.color))
                         Text(custom.name)
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.textPrimary)
                     } else {
                         Image(systemName: selectedCategory.iconName)
                             .font(.system(size: 18))
                             .foregroundColor(selectedCategory.color)
                         Text(selectedCategory.displayName)
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.textPrimary)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.textSecondary)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.systemGray6))
+                        .fill(Color.backgroundSecondary)
                 )
             }
             .buttonStyle(.plain)
+        }
+    }
+    
+    @ViewBuilder
+    private var dueDateSummaryView: some View {
+        if hasDueDate {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("\(formatDateOnly(dueDate)) ・ \(formatTimeOnly(dueDate)) ・ 预计 \(formatEstimatedTime(estimatedHours))h")
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .foregroundColor(.textPrimary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.backgroundSecondary)
+            )
+        } else {
+            HStack(spacing: 6) {
+                Text("设置日期与工时")
+                    .font(.system(size: 13, weight: .medium))
+                Image(systemName: "bell")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundColor(.textSecondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.backgroundSecondary)
+            )
         }
     }
 
@@ -894,12 +942,12 @@ struct TaskInputView: View {
             HStack {
                 Text("负责人")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.textPrimary)
                 Spacer()
                 if let assignee = selectedAssignee {
                     Text(assignee.name)
                         .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.textSecondary)
                         .lineLimit(1)
                 }
             }
@@ -908,20 +956,20 @@ struct TaskInputView: View {
                 HStack(spacing: 12) {
                     Image(systemName: selectedAssignee == nil ? "person.crop.circle.badge.plus" : (selectedAssignee?.avatar ?? "person.circle"))
                         .font(.system(size: 20))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.accentPrimary)
                     Text(selectedAssignee?.name ?? "选择负责人")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(selectedAssignee == nil ? .blue : .primary)
+                        .foregroundColor(selectedAssignee == nil ? .accentPrimary : .textPrimary)
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.textSecondary)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.systemGray6))
+                        .fill(Color.backgroundSecondary)
                 )
             }
             .buttonStyle(.plain)
@@ -932,7 +980,7 @@ struct TaskInputView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("任务循环")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.primary)
+                .foregroundColor(.textPrimary)
 
             HStack(spacing: 8) {
                 ForEach(RecurrenceRule.allCases, id: \.self) { rule in
@@ -943,7 +991,7 @@ struct TaskInputView: View {
             if recurrenceRule != .none {
                 Text(getRecurrenceDescription())
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.textSecondary)
             }
         }
     }
@@ -954,15 +1002,15 @@ struct TaskInputView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "folder")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.blue)
+                        .foregroundColor(.accentPrimary)
 
                     Text("关联项目")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.textPrimary)
 
                     Text("(可选)")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.textSecondary)
 
                     Spacer()
 
@@ -970,7 +1018,7 @@ struct TaskInputView: View {
                        let project = dataManager.getProject(byId: projectId) {
                         Text(project.name)
                             .font(.system(size: 13))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.textSecondary)
                             .lineLimit(1)
                     }
                 }
@@ -986,38 +1034,38 @@ struct TaskInputView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(project.name)
                                     .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.textPrimary)
                                     .lineLimit(1)
 
                                 if let description = project.description, !description.isEmpty {
                                     Text(description)
                                         .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(.textSecondary)
                                         .lineLimit(1)
                                 }
                             }
                         } else {
                             Image(systemName: "folder.badge.plus")
                                 .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.accentPrimary)
 
                             Text("选择项目")
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.accentPrimary)
                         }
 
                         Spacer()
 
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.textSecondary)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color(.systemGray6))
+                            .fill(Color.backgroundSecondary)
                     )
                 }
                 .buttonStyle(.plain)
@@ -1036,7 +1084,7 @@ struct TaskInputView: View {
                 .padding(.vertical, 8)
                 .background(
                     Capsule()
-                        .fill(recurrenceRule == rule ? Color.blue : Color(.systemGray6))
+                        .fill(recurrenceRule == rule ? Color.accentPrimary : Color.backgroundSecondary)
                 )
         }
         .buttonStyle(.plain)
@@ -1085,6 +1133,14 @@ struct TaskInputView: View {
         return formatter.string(from: date)
     }
     
+    private func formatEstimatedTime(_ hours: Double) -> String {
+        if hours.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", hours)
+        } else {
+            return String(format: "%.1f", hours)
+        }
+    }
+    
     private func getRecurrenceDescription() -> String {
         guard recurrenceRule != .none else {
             return "任务不会重复"
@@ -1120,15 +1176,31 @@ struct TaskInputView: View {
         }
     }
     
+    private func presentProjectCreationFlow() {
+        showingProjectPicker = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showingProjectCreation = true
+        }
+    }
+    
     // MARK: - Picker Sheets
     private var projectPickerSheet: some View {
         NavigationView {
             List {
+                Button {
+                    presentProjectCreationFlow()
+                } label: {
+                    Label("创建新项目", systemImage: "plus.circle.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.accentPrimary)
+                        .padding(.vertical, 6)
+                }
+                
                 Button("无项目") {
                     selectedProjectId = nil
                     showingProjectPicker = false
                 }
-                .foregroundColor(.primary)
+                .foregroundColor(.textPrimary)
                 
                 // Show team projects first if creating a team task
                 if let team = team {
@@ -1198,7 +1270,7 @@ struct TaskInputView: View {
                     selectedAssignee = nil
                     showingAssigneePicker = false
                 }
-                .foregroundColor(.primary)
+                .foregroundColor(.textPrimary)
                 
                 ForEach(dataManager.getAllUsers()) { user in
                     Button(action: {
@@ -1213,12 +1285,12 @@ struct TaskInputView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(user.name)
                                     .font(.body)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.textPrimary)
                                 
                                 if let role = user.role {
                                     Text(role)
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(.textSecondary)
                                 }
                             }
                             
@@ -1237,7 +1309,7 @@ struct TaskInputView: View {
                             }
                         }
                     }
-                    .foregroundColor(.primary)
+                    .foregroundColor(.textPrimary)
                 }
             }
             .navigationTitle("选择负责人")
@@ -1276,7 +1348,7 @@ struct TaskInputView: View {
                                 
                                 Text(customCategory.name)
                                     .font(.body)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.textPrimary)
                             } else {
                                 // 默认类别
                                 Image(systemName: categoryPair.category.iconName)
@@ -1286,7 +1358,7 @@ struct TaskInputView: View {
                                 
                                 Text(categoryPair.category.displayName)
                                     .font(.body)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.textPrimary)
                             }
                             
                             Spacer()
@@ -1299,7 +1371,7 @@ struct TaskInputView: View {
                             }
                         }
                     }
-                    .foregroundColor(.primary)
+                    .foregroundColor(.textPrimary)
                 }
                 
                 // 添加自定义类别按钮
@@ -1339,12 +1411,12 @@ struct TaskInputView: View {
             HStack(spacing: 8) {
                 Image(systemName: "photo")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.textSecondary)
                 
                 Text("附图")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.textSecondary)
                 
                 Spacer()
             }
@@ -1408,12 +1480,12 @@ struct TaskInputView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "photo.badge.plus")
                             .font(.system(size: 32))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.textSecondary)
                         
                         Text("添加附图")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.textSecondary)
                         
                         Text("点击选择图片")
                             .font(.caption)
@@ -1446,12 +1518,12 @@ struct TaskInputView: View {
             HStack {
                 Image(systemName: "repeat")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.textSecondary)
                 
                 Text("任务循环")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.textSecondary)
                 
                 Spacer()
             }
@@ -1468,11 +1540,11 @@ struct TaskInputView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.textSecondary)
                     
                     Text(getRecurrenceDescription())
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.textSecondary)
                     
                     Spacer()
                 }
@@ -1574,7 +1646,7 @@ struct TaskInputView: View {
         
         let attachmentData = selectedImage?.jpegData(compressionQuality: 0.75)
         
-        let estimatedHoursValue: Double? = hasDueDate ? 0.5 : nil
+        let estimatedHoursValue: Double? = hasDueDate ? estimatedHours : nil
         
         let newTask = Task(
             title: trimmedTitle,
@@ -1611,6 +1683,7 @@ struct TaskInputView: View {
         selectedCustomCategory = nil
         selectedPriority = nil
         recurrenceRule = .none
+        estimatedHours = 0.5
         selectedProjectId = project?.id
         showAdvancedInputs = false
         clearSelectedImage()
@@ -1622,6 +1695,108 @@ struct TaskInputView: View {
         ocrResult = nil
         suggestedTitle = ""
         suggestedDescription = ""
+    }
+}
+
+// MARK: - Due Date Editor Sheet
+private struct DueDateEditorSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var tempDate: Date
+    @State private var tempEstimatedHours: Double
+    let onSave: (Date, Double) -> Void
+    let onClear: () -> Void
+    
+    init(initialDate: Date, initialEstimatedHours: Double, onSave: @escaping (Date, Double) -> Void, onClear: @escaping () -> Void) {
+        _tempDate = State(initialValue: initialDate)
+        _tempEstimatedHours = State(initialValue: initialEstimatedHours)
+        self.onSave = onSave
+        self.onClear = onClear
+    }
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Button("取消") {
+                    dismiss()
+                }
+                .foregroundColor(.textSecondary)
+                
+                Spacer()
+                
+                Button("完成") {
+                    onSave(tempDate, tempEstimatedHours)
+                    dismiss()
+                }
+                .fontWeight(.semibold)
+                .foregroundColor(.accentPrimary)
+            }
+            
+            DatePicker("选择日期", selection: $tempDate, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .accentColor(.accentPrimary)
+                .labelsHidden()
+            
+            Divider()
+                .background(Color.dividerLine)
+            
+            VStack(alignment: .leading, spacing: 12) {
+                Text("选择时间")
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+                
+                DatePicker("", selection: $tempDate, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+            }
+            
+            VStack(alignment: .leading, spacing: 12) {
+                Text("预计用时 (小时)")
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+                
+                HStack(spacing: 16) {
+                    Button {
+                        if tempEstimatedHours > 0.5 { tempEstimatedHours -= 0.5 }
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundColor(tempEstimatedHours > 0.5 ? .accentPrimary : .gray.opacity(0.4))
+                    }
+                    .disabled(tempEstimatedHours <= 0.5)
+                    
+                    VStack(spacing: 2) {
+                        Text(String(format: "%.1f", tempEstimatedHours))
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                        Text("小时")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    
+                    Button {
+                        if tempEstimatedHours < 24 { tempEstimatedHours += 0.5 }
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundColor(tempEstimatedHours < 24 ? .accentPrimary : .gray.opacity(0.4))
+                    }
+                    .disabled(tempEstimatedHours >= 24)
+                    
+                    Slider(value: $tempEstimatedHours, in: 0.5...24, step: 0.5)
+                        .tint(.accentPrimary)
+                }
+            }
+            
+            Button("清除截止日期") {
+                onClear()
+                dismiss()
+            }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(.red)
+            .padding(.top, 12)
+        }
+        .padding(20)
+        .presentationBackground(Color.backgroundPrimary)
     }
 }
 
@@ -1641,12 +1816,12 @@ struct ProjectPickerRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(project.name)
                         .font(.body)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.textPrimary)
                     
                     if let description = project.description {
                         Text(description)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.textSecondary)
                             .lineLimit(1)
                     }
                 }
@@ -1660,7 +1835,7 @@ struct ProjectPickerRow: View {
                 }
             }
         }
-        .foregroundColor(.primary)
+        .foregroundColor(.textPrimary)
     }
 }
 

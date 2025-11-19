@@ -467,7 +467,6 @@ struct TeamDetailView: View {
                 Picker("View", selection: $selectedTab) {
                     Text("Members").tag(0)
                     Text("Calendar").tag(1)
-                    Text("Projects").tag(2)
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .padding(.horizontal, 16)
@@ -477,7 +476,6 @@ struct TeamDetailView: View {
                 TabView(selection: $selectedTab) {
                     teamMembersView.tag(0)
                     teamCalendarView.tag(1)
-                    teamProjectsView.tag(2)
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             }
@@ -642,75 +640,6 @@ struct TeamDetailView: View {
     }
     
     @State private var selectedCalendarDate = Date()
-    
-    private var teamProjectsView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    Text("Team Projects")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        showingCreateProject = true
-                    }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.softTeal)
-                    }
-                }
-                .padding(.horizontal, 16)
-                
-                // Team Projects List
-                LazyVStack(spacing: 12) {
-                    ForEach(dataManager.getTeamProjects(teamId: team.id)) { project in
-                        TeamProjectCardView(project: project, team: team)
-                    }
-                    
-                    if dataManager.getTeamProjects(teamId: team.id).isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "folder.badge.plus")
-                                .font(.system(size: 40))
-                                .foregroundColor(.secondary)
-                            
-                            Text("No Projects Yet")
-                                .font(.title3)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-                            
-                            Text("Create your first team project to get started")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            
-                            Button(action: {
-                                showingCreateProject = true
-                            }) {
-                                Text("Create Project")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                                    .background(Color.softTeal)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 40)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray6))
-                        )
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-            .padding(.vertical, 16)
-        }
-    }
     
     private var teamMembersView: some View {
         ScrollView {
@@ -1033,6 +962,8 @@ struct CreateTeamView: View {
     @State private var selectedColor = "#3B82F6"
     @State private var selectedMembers: Set<UUID> = []
     @State private var showingMemberSelection = false
+    @State private var showingIconPicker = false
+    @State private var showAdvancedFields = false
     
     private let iconOptions = [
         "person.3.fill", "briefcase.fill", "book.fill", "gamecontroller.fill",
@@ -1045,184 +976,214 @@ struct CreateTeamView: View {
         "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16"
     ]
     
+    private var canCreate: Bool {
+        !teamName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Team Icon Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Team Icon")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
-                            ForEach(iconOptions, id: \.self) { icon in
-                                Button(action: {
-                                    selectedIcon = icon
-                                }) {
-                                    Image(systemName: icon)
-                                        .font(.title2)
-                                        .foregroundColor(selectedIcon == icon ? .white : Color(hex: selectedColor))
-                                        .frame(width: 50, height: 50)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(selectedIcon == icon ? Color(hex: selectedColor) : Color(hex: selectedColor).opacity(0.1))
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(selectedIcon == icon ? Color(hex: selectedColor) : Color.clear, lineWidth: 2)
-                                        )
-                                }
-                            }
+        NavigationStack {
+            ZStack {
+                Color.backgroundPrimary
+                    .ignoresSafeArea()
+                
+                VStack(alignment: .leading, spacing: 24) {
+                    teamNameField
+                    iconAndColorRow
+                    disclosureToggle
+                    
+                    if showAdvancedFields {
+                        VStack(spacing: 16) {
+                            descriptionField
+                            memberSelectionField
                         }
-                    }
-                    
-                    // Team Color Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Team Color")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
-                            ForEach(colorOptions, id: \.self) { color in
-                                Button(action: {
-                                    selectedColor = color
-                                }) {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color(hex: color))
-                                        .frame(width: 50, height: 50)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(selectedColor == color ? Color.primary : Color.clear, lineWidth: 3)
-                                        )
-                                        .overlay(
-                                            Image(systemName: "checkmark")
-                                                .font(.headline)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.white)
-                                                .opacity(selectedColor == color ? 1 : 0)
-                                        )
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Team Name
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Team Name")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        TextField("Enter team name", text: $teamName)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    // Team Description
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Description")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        TextField("Describe your team's purpose", text: $teamDescription, axis: .vertical)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .lineLimit(3...6)
-                    }
-                    
-                    // Team Members Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Team Members")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            
-                            Spacer()
-                            
-                            Button("Add Members") {
-                                showingMemberSelection = true
-                            }
-                            .font(.subheadline)
-                            .foregroundColor(.softTeal)
-                        }
-                        
-                        if selectedMembers.isEmpty {
-                            Text("No members selected. You will be added as the team owner.")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .padding(.vertical, 8)
-                        } else {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(Array(selectedMembers.compactMap { id in
-                                        dataManager.getTeamMember(byId: id)
-                                    }.enumerated()), id: \.offset) { index, member in
-                                        SelectedMemberChip(member: member, index: index) {
-                                            selectedMembers.remove(member.id)
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal, 1)
-                            }
-                        }
-                    }
-                    
-                    // Team Preview
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Preview")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        TeamPreviewCard(
-                            name: teamName.isEmpty ? "Team Name" : teamName,
-                            description: teamDescription.isEmpty ? "Team description will appear here" : teamDescription,
-                            icon: selectedIcon,
-                            color: selectedColor,
-                            memberCount: selectedMembers.count + 1 // +1 for the creator
-                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
                     
                     Spacer()
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 24)
+                .padding(24)
             }
-            .navigationTitle("Create Team")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("取消") { dismiss() }
+                        .foregroundColor(.textPrimary)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Create") {
-                        createTeam()
-                    }
-                    .disabled(teamName.isEmpty)
+                    Button("创建") { createTeam() }
+                        .fontWeight(.semibold)
+                        .foregroundColor(canCreate ? .accentPrimary : .textSecondary)
+                        .disabled(!canCreate)
                 }
             }
+        }
+        .confirmationDialog("选择团队图标", isPresented: $showingIconPicker, titleVisibility: .visible) {
+            ForEach(iconOptions, id: \.self) { icon in
+                Button {
+                    selectedIcon = icon
+                } label: {
+                    Text(Image(systemName: icon))
+                }
+            }
+            Button("取消", role: .cancel) {}
         }
         .sheet(isPresented: $showingMemberSelection) {
             MemberSelectionView(selectedMembers: $selectedMembers)
         }
     }
     
+    private var teamNameField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ZStack(alignment: .leading) {
+                if teamName.isEmpty {
+                    Text("团队名称 *")
+                        .foregroundColor(.textSecondary)
+                        .font(.system(size: 28, weight: .light))
+                }
+                
+                TextField("", text: $teamName)
+                    .font(.system(size: 28, weight: .light))
+                    .foregroundColor(.textPrimary)
+            }
+            
+            Rectangle()
+                .fill(Color.dividerLine)
+                .frame(height: 1)
+        }
+    }
+    
+    private var iconAndColorRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("视觉元素")
+                .font(.system(size: 14))
+                .foregroundColor(.textSecondary)
+            
+            HStack(alignment: .center, spacing: 24) {
+                Button {
+                    showingIconPicker = true
+                } label: {
+                    VStack(spacing: 8) {
+                        Text("图标")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                        
+                        Circle()
+                            .fill(Color(hex: selectedColor).opacity(0.15))
+                            .frame(width: 64, height: 64)
+                            .overlay(
+                                Image(systemName: selectedIcon)
+                                    .font(.system(size: 30, weight: .semibold))
+                                    .foregroundColor(Color(hex: selectedColor))
+                            )
+                    }
+                    .frame(width: 90)
+                }
+                .buttonStyle(.plain)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("颜色")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(colorOptions, id: \.self) { color in
+                                Circle()
+                                    .fill(Color(hex: color))
+                                    .frame(width: 34, height: 34)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(selectedColor == color ? Color.textPrimary.opacity(0.3) : .clear, lineWidth: 3)
+                                    )
+                                    .onTapGesture {
+                                        selectedColor = color
+                                    }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private var disclosureToggle: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                showAdvancedFields.toggle()
+            }
+        } label: {
+            Text(showAdvancedFields ? "– 隐藏描述与成员" : "+ 添加描述与成员")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.accentPrimary)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private var descriptionField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("团队描述")
+                .font(.system(size: 14))
+                .foregroundColor(.textSecondary)
+            
+            TextEditor(text: $teamDescription)
+                .frame(height: 100)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.backgroundSecondary)
+                )
+                .foregroundColor(.textPrimary)
+        }
+    }
+    
+    private var memberSelectionField: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("团队成员")
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+                Spacer()
+                Button("管理") {
+                    showingMemberSelection = true
+                }
+                .font(.caption)
+                .foregroundColor(.accentPrimary)
+            }
+            
+            if selectedMembers.isEmpty {
+                Text("未选择成员，创建者将自动加入团队。")
+                    .font(.system(size: 13))
+                    .foregroundColor(.textSecondary)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(selectedMembers.compactMap { dataManager.getTeamMember(byId: $0) }.enumerated()), id: \.offset) { index, member in
+                            SelectedMemberChip(member: member, index: index) {
+                                selectedMembers.remove(member.id)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     private func createTeam() {
-        // Get selected members
+        let name = teamName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let descriptionValue = showAdvancedFields ? teamDescription.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        
         let selectedTeamMembers = selectedMembers.compactMap { id in
             dataManager.getTeamMember(byId: id)
         }
-        
-        // Add creator as the first member if not already included
         var allMembers = selectedTeamMembers
         let currentUser = TeamMember(name: "Me", role: "Owner", isOnline: true)
-        if !allMembers.contains(where: { $0.name == "Me" }) {
+        if !allMembers.contains(where: { $0.id == currentUser.id }) {
             allMembers.insert(currentUser, at: 0)
         }
         
         let newTeam = Team(
-            name: teamName,
-            description: teamDescription.isEmpty ? "No description provided" : teamDescription,
+            name: name,
+            description: descriptionValue.isEmpty ? "未填写团队描述" : descriptionValue,
             icon: selectedIcon,
             color: selectedColor,
             members: allMembers,
@@ -1280,52 +1241,7 @@ struct SelectedMemberChip: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
-        )
-    }
-}
-
-struct TeamPreviewCard: View {
-    let name: String
-    let description: String
-    let icon: String
-    let color: String
-    let memberCount: Int
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(Color(hex: color))
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                    
-                    Text("\(memberCount) member\(memberCount == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-            }
-            
-            Text(description)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(hex: color).opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color(hex: color).opacity(0.3), lineWidth: 1)
-                )
+                .fill(Color.backgroundSecondary)
         )
     }
 }

@@ -6,7 +6,7 @@ struct TabBarTestView: View {
     private let tabs = [
         TabItem(title: "首页", icon: "house", selectedIcon: "house.fill"),
         TabItem(title: "项目", icon: "folder", selectedIcon: "folder.fill"),
-        TabItem(title: "任务", icon: "checkmark.circle", selectedIcon: "checkmark.circle.fill"),
+        TabItem(title: "添加", icon: "plus", selectedIcon: "plus.circle.fill"),
         TabItem(title: "团队", icon: "person.2", selectedIcon: "person.2.fill"),
         TabItem(title: "设置", icon: "gearshape", selectedIcon: "gearshape.fill")
     ]
@@ -66,7 +66,7 @@ struct TabBarTestView: View {
             // Tab Bar
             VStack {
                 Spacer()
-                NeumorphicTabBar(
+                CustomTabBar(
                     selectedTab: $selectedTab,
                     tabs: tabs
                 )

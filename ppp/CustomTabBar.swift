@@ -23,7 +23,7 @@ struct CustomTabBar: View {
             .padding(.bottom, 24)
             .background(
                 Capsule()
-                    .fill(Color(.systemBackground))
+                    .fill(Color.backgroundSecondary)
                     .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: -2)
                     .ignoresSafeArea(edges: .bottom)
             )
@@ -38,9 +38,9 @@ struct CustomTabBar: View {
         } label: {
             ZStack {
                 Circle()
-                    .fill(Color.blue)
+                    .fill(Color.accentPrimary)
                     .frame(width: 68, height: 68)
-                    .shadow(color: Color.blue.opacity(0.3), radius: 12, x: 0, y: 8)
+                    .shadow(color: Color.accentPrimary.opacity(0.3), radius: 12, x: 0, y: 8)
                 
                 Image(systemName: "plus")
                     .font(.system(size: 30, weight: .bold))
@@ -54,8 +54,8 @@ struct CustomTabBar: View {
     private func standardTabButton(for item: TabItem, at index: Int) -> some View {
         let isSelected = selectedTab == index
         let isHome = index == 0
-        let activeColor: Color = isHome ? .blue : Color(.systemGray)
-        let inactiveColor = Color(.systemGray3)
+        let activeColor: Color = isHome ? .accentPrimary : .textSecondary
+        let inactiveColor = Color.textSecondary.opacity(0.7)
         
         return Button {
             select(index)
